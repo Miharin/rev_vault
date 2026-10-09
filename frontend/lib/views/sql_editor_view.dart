@@ -199,9 +199,11 @@ class _SqlEditorViewState extends State<SqlEditorView> {
             const SingleActivator(LogicalKeyboardKey.numpadEnter, meta: true): _runQuery,
           },
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // SQL Editor Toolbar (Adaptive Mobile / Desktop)
               Container(
+                width: double.infinity,
                 padding: EdgeInsets.symmetric(
                   horizontal: isMobile ? 10 : 16,
                   vertical: isMobile ? 6 : 8,
@@ -216,6 +218,7 @@ class _SqlEditorViewState extends State<SqlEditorView> {
               Focus(
                 onKeyEvent: _handleKeyEvent,
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DragTarget<Object>(
@@ -231,6 +234,7 @@ class _SqlEditorViewState extends State<SqlEditorView> {
 
                         return AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
+                          width: double.infinity,
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: isHovered

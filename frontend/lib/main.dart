@@ -123,9 +123,11 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
           return Scaffold(
             drawer: isMobile ? _buildMobileDrawer(context, state, theme, accent) : null,
             body: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Top Tactical HUD Header Bar
                 Container(
+                  width: double.infinity,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surface,
                     border: Border(
@@ -191,6 +193,7 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                 // Mobile Navigation Sub-Bar (Explorer vs MCP Audit Tabs)
                 if (isMobile)
                   Container(
+                    width: double.infinity,
                     height: 40,
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
@@ -259,7 +262,15 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
 
                 // Bottom Status & Telemetry Bar
                 Container(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                    border: Border(
+                      top: BorderSide(
+                        color: theme.dividerColor.withValues(alpha: 0.25),
+                      ),
+                    ),
+                  ),
                   child: Padding(
                     padding: EdgeInsets.only(bottom: _getEffectiveBottomInset(context)),
                     child: SafeArea(
