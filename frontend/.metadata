@@ -13,11 +13,11 @@ project_type: app
 migration:
   platforms:
     - platform: root
-      create_revision: abaf9c523780a608bd46686fd5e53740a07077f8
-      base_revision: abaf9c523780a608bd46686fd5e53740a07077f8
+      create_revision: 6a19cca56475dbfba1478ee68d7bd0c2ef891da1
+      base_revision: 6a19cca56475dbfba1478ee68d7bd0c2ef891da1
     - platform: android
-      create_revision: abaf9c523780a608bd46686fd5e53740a07077f8
-      base_revision: abaf9c523780a608bd46686fd5e53740a07077f8
+      create_revision: 6a19cca56475dbfba1478ee68d7bd0c2ef891da1
+      base_revision: 6a19cca56475dbfba1478ee68d7bd0c2ef891da1
 
   # User provided section
 
@@ -26,5 +26,5 @@ migration:
   #
   # Files that are not part of the templates will be ignored by default.
   unmanaged_files:
-    - 'lib/main.dart'
-    - 'ios/Runner.xcodeproj/project.pbxproj'
+    - "lib/main.dart"
+    - "ios/Runner.xcodeproj/project.pbxproj"
