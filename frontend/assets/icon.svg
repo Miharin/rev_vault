@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- R Hot Pink Gradient -->
+    <linearGradient id="pinkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDA4AF"/>
+      <stop offset="35%" stop-color="#F43F5E"/>
+      <stop offset="75%" stop-color="#EC4899"/>
+      <stop offset="100%" stop-color="#D946EF"/>
+    </linearGradient>
+
+    <!-- V Electric Purple Gradient -->
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E879F9"/>
+      <stop offset="35%" stop-color="#C084FC"/>
+      <stop offset="70%" stop-color="#9333EA"/>
+      <stop offset="100%" stop-color="#7E22CE"/>
+    </linearGradient>
+
+    <!-- Small Database Accent Gradient -->
+    <linearGradient id="dataGradTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#00F0FF"/>
+    </linearGradient>
+    <linearGradient id="dataGradBody" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0284C7"/>
+      <stop offset="100%" stop-color="#0369A1"/>
+    </linearGradient>
+
+    <!-- Soft Drop Shadow for Transparent Background Contrast -->
+    <filter id="glyphShadow" x="-20%" y="-20%" width="140%" height="140%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#000000" flood-opacity="0.45"/>
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+
+    <filter id="dataGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Top Specular Shimmer -->
+    <linearGradient id="specularGlint" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="30%" stop-color="#FFFFFF" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- NO BACKGROUND CONTAINER / ZERO BACKGROUND RECTANGLE (COMPLETELY TRANSPARENT) -->
+
+  <!-- Monogram Group with Contrast Drop Shadow -->
+  <g filter="url(#glyphShadow)">
+
+    <!-- ================= LETTER 'R' (Bold Rounded, Hot Pink) ================= -->
+    <!-- Centered optical bounding box: R extends x ~ 140 to 520, y ~ 200 to 824 -->
+    <g>
+      <!-- Base R Path -->
+      <path d="M 170 240 
+               L 370 240 
+               C 475 240, 545 300, 545 405 
+               C 545 480, 495 535, 420 560 
+               L 535 770 
+               C 545 790, 535 810, 510 810 
+               L 430 810 
+               C 410 810, 395 800, 385 780 
+               L 290 600 
+               L 290 770 
+               C 290 795, 275 810, 250 810 
+               L 210 810 
+               C 185 810, 170 795, 170 770 
+               Z
+               M 290 345 
+               L 290 500 
+               L 360 500 
+               C 420 500, 445 465, 445 422 
+               C 445 380, 420 345, 360 345 
+               Z" 
+            fill="url(#pinkGrad)"/>
+
+      <!-- Specular Highlight Curve on Top of 'R' -->
+      <path d="M 170 240 
+               L 370 240 
+               C 475 240, 545 300, 545 405 
+               C 545 425, 535 440, 520 440 
+               C 490 320, 410 300, 340 300 
+               L 210 300 
+               C 185 300, 170 280, 170 240 Z" 
+            fill="url(#specularGlint)"/>
+    </g>
+
+    <!-- ================= LETTER 'V' (Bold Rounded, Electric Purple) ================= -->
+    <!-- Nested harmoniously next to R: x ~ 485 to 870, y ~ 240 to 810 -->
+    <g>
+      <!-- Base V Path -->
+      <path d="M 500 250 
+               C 500 230, 515 220, 535 220 
+               L 575 220 
+               C 595 220, 610 235, 620 255 
+               L 705 600 
+               L 790 255 
+               C 800 235, 815 220, 835 220 
+               L 870 220 
+               C 890 220, 905 235, 900 255 
+               L 760 770 
+               C 750 800, 725 815, 705 815 
+               C 685 815, 660 800, 650 770 
+               L 505 255 
+               C 500 250, 500 250, 500 250 Z" 
+            fill="url(#purpleGrad)"/>
+
+      <!-- Specular Highlight Curve on Top of 'V' -->
+      <ellipse cx="555" cy="235" rx="35" ry="12" fill="url(#specularGlint)"/>
+      <ellipse cx="855" cy="235" rx="35" ry="12" fill="url(#specularGlint)"/>
+    </g>
+
+    <!-- ================= SUBTLE SMALL DATA / DATABASE ACCENT ================= -->
+    <!-- Elegant, minimalist 3-tier database stack resting gracefully on the upper-right shoulder -->
+    <g transform="translate(850, 170)" filter="url(#dataGlow)">
+      <!-- Tier 1 (Bottom disc) -->
+      <path d="M -42 60 C -42 48, -22 40, 0 40 C 22 40, 42 48, 42 60 L 42 82 C 42 94, 22 102, 0 102 C -22 102, -42 94, -42 82 Z" 
+            fill="url(#dataGradBody)"/>
+      <ellipse cx="0" cy="60" rx="42" ry="14" fill="url(#dataGradTop)"/>
+
+      <!-- Tier 2 (Middle disc) -->
+      <path d="M -42 30 C -42 18, -22 10, 0 10 C 22 10, 42 18, 42 30 L 42 52 C 42 64, 22 72, 0 72 C -22 72, -42 64, -42 52 Z" 
+            fill="url(#dataGradBody)"/>
+      <ellipse cx="0" cy="30" rx="42" ry="14" fill="url(#dataGradTop)"/>
+
+      <!-- Tier 3 (Top disc) -->
+      <path d="M -42 0 C -42 -12, -22 -20, 0 -20 C 22 -20, 42 -12, 42 0 L 42 22 C 42 34, 22 42, 0 42 C -22 42, -42 34, -42 22 Z" 
+            fill="url(#dataGradBody)"/>
+      <ellipse cx="0" cy="0" rx="42" ry="14" fill="url(#dataGradTop)"/>
+      <!-- Top disc glint -->
+      <ellipse cx="0" cy="-2" rx="34" ry="9" fill="#FFFFFF" opacity="0.6"/>
+    </g>
+
+  </g>
+</svg>

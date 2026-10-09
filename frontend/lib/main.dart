@@ -108,8 +108,6 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
               children: [
                 // Top Tactical HUD Header Bar
                 Container(
-                  height: 48,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surface,
                     border: Border(
@@ -118,9 +116,18 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                       ),
                     ),
                   ),
-                  child: isMobile
-                      ? _buildMobileHeader(context, state, theme, accent)
-                      : _buildDesktopHeader(context, state, theme, accent, isBothRailsCollapsed),
+                  child: SafeArea(
+                    bottom: false,
+                    child: SizedBox(
+                      height: 48,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: isMobile
+                            ? _buildMobileHeader(context, state, theme, accent)
+                            : _buildDesktopHeader(context, state, theme, accent, isBothRailsCollapsed),
+                      ),
+                    ),
+                  ),
                 ),
 
                 // Mobile Navigation Sub-Bar (Explorer vs MCP Audit Tabs)
@@ -194,39 +201,46 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
 
                 // Bottom Status & Telemetry Bar
                 Container(
-                  height: 24,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
                   color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        Icon(Icons.bolt, size: 12, color: accent),
-                        const SizedBox(width: 5),
-                        const Text(
-                          'ANTIGRAVITY MCP: ACTIVE',
-                          style: TextStyle(fontSize: 10, fontFamily: 'monospace', fontWeight: FontWeight.bold, color: Colors.grey),
-                        ),
-                        const SizedBox(width: 14),
-                        Text(
-                          'AST SAFE_MODE: ${state.safeMode ? "ARMED" : "BYPASSED"}',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontFamily: 'monospace',
-                            color: state.safeMode ? const Color(0xFF10B981) : Colors.amber,
+                  child: SafeArea(
+                    top: false,
+                    child: SizedBox(
+                      height: 24,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              Icon(Icons.bolt, size: 12, color: accent),
+                              const SizedBox(width: 5),
+                              const Text(
+                                'ANTIGRAVITY MCP: ACTIVE',
+                                style: TextStyle(fontSize: 10, fontFamily: 'monospace', fontWeight: FontWeight.bold, color: Colors.grey),
+                              ),
+                              const SizedBox(width: 14),
+                              Text(
+                                'AST SAFE_MODE: ${state.safeMode ? "ARMED" : "BYPASSED"}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontFamily: 'monospace',
+                                  color: state.safeMode ? const Color(0xFF10B981) : Colors.amber,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Text(
+                                'QUERIES: ${state.auditEvents.length} | BLOCKED: ${state.auditEvents.where((e) => e.isBlocked).length}',
+                                style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Colors.grey),
+                              ),
+                              const SizedBox(width: 14),
+                              Text(
+                                isMobile ? 'MOBILE_PHONE_VIEW' : (isConstrained ? 'COMPACT_VIEW' : 'STUDIO_VIEW'),
+                                style: TextStyle(fontSize: 9.5, fontFamily: 'monospace', color: accent),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 14),
-                        Text(
-                          'QUERIES: ${state.auditEvents.length} | BLOCKED: ${state.auditEvents.where((e) => e.isBlocked).length}',
-                          style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Colors.grey),
-                        ),
-                        const SizedBox(width: 14),
-                        Text(
-                          isMobile ? 'MOBILE_PHONE_VIEW' : (isConstrained ? 'COMPACT_VIEW' : 'STUDIO_VIEW'),
-                          style: TextStyle(fontSize: 9.5, fontFamily: 'monospace', color: accent),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
