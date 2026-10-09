@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'state/app_state.dart';
@@ -76,6 +77,22 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
     }
   }
 
+  double _getEffectiveTopInset(BuildContext context) {
+    final systemTop = MediaQuery.paddingOf(context).top;
+    if (systemTop > 0) return systemTop;
+    final isMobilePlatform = defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+    return isMobilePlatform ? 38.0 : 0.0;
+  }
+
+  double _getEffectiveBottomInset(BuildContext context) {
+    final systemBottom = MediaQuery.paddingOf(context).bottom;
+    if (systemBottom > 0) return systemBottom;
+    final isMobilePlatform = defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+    return isMobilePlatform ? 16.0 : 0.0;
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -116,15 +133,19 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                       ),
                     ),
                   ),
-                  child: SafeArea(
-                    bottom: false,
-                    child: SizedBox(
-                      height: 48,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: isMobile
-                            ? _buildMobileHeader(context, state, theme, accent)
-                            : _buildDesktopHeader(context, state, theme, accent, isBothRailsCollapsed),
+                  child: Padding(
+                    padding: EdgeInsets.only(top: _getEffectiveTopInset(context)),
+                    child: SafeArea(
+                      top: false,
+                      bottom: false,
+                      child: SizedBox(
+                        height: 48,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: isMobile
+                              ? _buildMobileHeader(context, state, theme, accent)
+                              : _buildDesktopHeader(context, state, theme, accent, isBothRailsCollapsed),
+                        ),
                       ),
                     ),
                   ),
@@ -202,42 +223,46 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                 // Bottom Status & Telemetry Bar
                 Container(
                   color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-                  child: SafeArea(
-                    top: false,
-                    child: SizedBox(
-                      height: 24,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              Icon(Icons.bolt, size: 12, color: accent),
-                              const SizedBox(width: 5),
-                              const Text(
-                                'ANTIGRAVITY MCP: ACTIVE',
-                                style: TextStyle(fontSize: 10, fontFamily: 'monospace', fontWeight: FontWeight.bold, color: Colors.grey),
-                              ),
-                              const SizedBox(width: 14),
-                              Text(
-                                'AST SAFE_MODE: ${state.safeMode ? "ARMED" : "BYPASSED"}',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontFamily: 'monospace',
-                                  color: state.safeMode ? const Color(0xFF10B981) : Colors.amber,
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: _getEffectiveBottomInset(context)),
+                    child: SafeArea(
+                      top: false,
+                      bottom: false,
+                      child: SizedBox(
+                        height: 24,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                Icon(Icons.bolt, size: 12, color: accent),
+                                const SizedBox(width: 5),
+                                const Text(
+                                  'ANTIGRAVITY MCP: ACTIVE',
+                                  style: TextStyle(fontSize: 10, fontFamily: 'monospace', fontWeight: FontWeight.bold, color: Colors.grey),
                                 ),
-                              ),
-                              const SizedBox(width: 14),
-                              Text(
-                                'QUERIES: ${state.auditEvents.length} | BLOCKED: ${state.auditEvents.where((e) => e.isBlocked).length}',
-                                style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Colors.grey),
-                              ),
-                              const SizedBox(width: 14),
-                              Text(
-                                isMobile ? 'MOBILE_PHONE_VIEW' : (isConstrained ? 'COMPACT_VIEW' : 'STUDIO_VIEW'),
-                                style: TextStyle(fontSize: 9.5, fontFamily: 'monospace', color: accent),
-                              ),
-                            ],
+                                const SizedBox(width: 14),
+                                Text(
+                                  'AST SAFE_MODE: ${state.safeMode ? "ARMED" : "BYPASSED"}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontFamily: 'monospace',
+                                    color: state.safeMode ? const Color(0xFF10B981) : Colors.amber,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Text(
+                                  'QUERIES: ${state.auditEvents.length} | BLOCKED: ${state.auditEvents.where((e) => e.isBlocked).length}',
+                                  style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Colors.grey),
+                                ),
+                                const SizedBox(width: 14),
+                                Text(
+                                  isMobile ? 'MOBILE_PHONE_VIEW' : (isConstrained ? 'COMPACT_VIEW' : 'STUDIO_VIEW'),
+                                  style: TextStyle(fontSize: 9.5, fontFamily: 'monospace', color: accent),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
