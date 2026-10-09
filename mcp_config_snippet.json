@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "revvault": {
+      "command": "/home/miharin/Documents/Project/rev_vault/backend/.venv/bin/python",
+      "args": [
+        "/home/miharin/Documents/Project/rev_vault/backend/run_mcp_stdio.py"
+      ],
+      "env": {
+        "REVVAULT_DIR": "/home/miharin/.revvault"
+      }
+    }
+  }
+}

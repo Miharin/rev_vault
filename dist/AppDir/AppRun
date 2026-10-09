@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+
+# Resolve AppDir root
+HERE="$(dirname "$(readlink -f "${0}")")"
+
+export APPDIR="${HERE}"
+export PATH="${APPDIR}:${APPDIR}/backend:${PATH}"
+export LD_LIBRARY_PATH="${APPDIR}/lib:${APPDIR}/usr/lib:${LD_LIBRARY_PATH}"
+
+# Launch RevVault desktop application
+exec "${APPDIR}/rev_vault" "$@"

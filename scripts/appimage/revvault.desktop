@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=RevVault
+GenericName=Database Companion & Agent Hub
+Comment=Intelligent Database Companion & Antigravity MCP Service
+Exec=rev_vault %u
+Icon=revvault
+Terminal=false
+Type=Application
+Categories=Development;Database;IDE;Utility;
+Keywords=database;sql;sqlite;postgres;antigravity;mcp;
+StartupNotify=true
