@@ -10,6 +10,7 @@ import 'views/sql_editor_view.dart';
 import 'views/mcp_monitor_view.dart';
 import 'views/widgets/tactical_hud_widgets.dart';
 import 'views/widgets/mobile_connect_modal.dart';
+import 'views/widgets/backend_settings_modal.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -150,6 +151,42 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                     ),
                   ),
                 ),
+
+                // Offline Notice Banner with Quick Action
+                if (!state.isBackendOnline)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    color: Colors.red.shade900.withValues(alpha: 0.85),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.wifi_off, size: 14, color: Colors.white),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Backend offline (${state.backendBaseUrl}). Check PC server or configure IP.',
+                            style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w500),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => showBackendSettingsModal(context),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.22),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'Change Host IP',
+                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
                 // Mobile Navigation Sub-Bar (Explorer vs MCP Audit Tabs)
                 if (isMobile)
@@ -334,6 +371,39 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                   ],
                 ),
               ),
+              // Mobile Drawer Backend Config Footer
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
+                  border: Border(top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.25))),
+                ),
+                child: Row(
+                  children: [
+                    CyberStatusDot(
+                      isOnline: state.isBackendOnline,
+                      label: state.isBackendOnline ? 'ON' : 'OFF',
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        state.backendBaseUrl,
+                        style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.settings_ethernet, size: 16, color: accent),
+                      tooltip: 'Configure Backend IP',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        showBackendSettingsModal(context);
+                      },
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -414,10 +484,26 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
           const SizedBox(width: 6),
         ],
 
-        // Online Dot
-        CyberStatusDot(
-          isOnline: state.isBackendOnline,
-          label: state.isBackendOnline ? 'ON' : 'OFF',
+        // Online Dot & Tap to Configure
+        InkWell(
+          onTap: () => showBackendSettingsModal(context),
+          borderRadius: BorderRadius.circular(6),
+          child: CyberStatusDot(
+            isOnline: state.isBackendOnline,
+            label: state.isBackendOnline ? 'ON' : 'OFF',
+          ),
+        ),
+
+        const SizedBox(width: 4),
+
+        // Backend Host Settings
+        IconButton(
+          icon: Icon(Icons.settings_ethernet, size: 16, color: accent),
+          tooltip: 'Configure Backend IP',
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+          onPressed: () => showBackendSettingsModal(context),
         ),
 
         const SizedBox(width: 4),
@@ -639,13 +725,53 @@ Widget _buildDesktopHeader(
             const SizedBox(width: 10),
           ],
 
-          // Backend Status Dot
-          CyberStatusDot(
-            isOnline: state.isBackendOnline,
-            label: state.isBackendOnline ? 'Online' : 'Offline',
+          // Backend Status Dot & Configurator
+          Tooltip(
+            message: 'Backend: ${state.backendBaseUrl} (Click to change IP)',
+            child: InkWell(
+              onTap: () => showBackendSettingsModal(context),
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: CyberStatusDot(
+                  isOnline: state.isBackendOnline,
+                  label: state.isBackendOnline ? 'Online' : 'Offline',
+                ),
+              ),
+            ),
           ),
 
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
+
+          // Host IP Settings Button
+          Tooltip(
+            message: 'Configure Backend Host IP / Port',
+            child: InkWell(
+              onTap: () => showBackendSettingsModal(context),
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: theme.dividerColor.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.settings_ethernet, size: 14, color: accent),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Host IP',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 8),
 
           // Connect Mobile Button
           Tooltip(

@@ -74,9 +74,20 @@ class AuditStreamService {
     });
   }
 
-  void dispose() {
+  /// Disconnects current channel and stops reconnect attempts.
+  void disconnect() {
     _reconnectTimer?.cancel();
-    _channel?.sink.close();
+    _reconnectTimer = null;
+    try {
+      _channel?.sink.close();
+    } catch (_) {}
+    _channel = null;
+    _isConnected = false;
+    _reconnectAttempts = 0;
+  }
+
+  void dispose() {
+    disconnect();
     _controller.close();
   }
 }

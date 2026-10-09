@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../models/connection.dart';
 import '../models/table_schema.dart';
@@ -8,6 +9,7 @@ import '../services/api_service.dart';
 import '../services/audit_stream_service.dart';
 import '../services/sql_autocomplete_service.dart';
 import '../services/backend_sidecar_service.dart';
+import '../services/backend_config_service.dart';
 
 import '../theme/cyber_theme.dart';
 
@@ -126,15 +128,38 @@ class AppState extends ChangeNotifier {
   bool isSchemaLoading = false;
 
   final List<AuditEvent> auditEvents = [];
+  StreamSubscription<AuditEvent>? _auditSubscription;
+  String? customBackendUrl;
 
   Future<void> init() async {
     isLoading = true;
     notifyListeners();
 
-    // Ensure backend sidecar is running on desktop
+    // 1. Check if a custom backend endpoint was saved previously (e.g., mobile Wi-Fi)
+    final savedUrl = await BackendConfigService.loadSavedUrl();
+    if (savedUrl != null && savedUrl.isNotEmpty) {
+      customBackendUrl = savedUrl;
+      api.setBaseUrl(savedUrl);
+      auditStream.setWsUrl(BackendConfigService.toWebSocketUrl(savedUrl));
+      isBackendOnline = await api.checkHealth(retries: 3, delay: const Duration(milliseconds: 400));
+      if (isBackendOnline) {
+        await loadConnections();
+        await Future.wait([
+          loadSchema(),
+          loadSavedQueries(),
+        ]);
+        _initAuditStream();
+        isLoading = false;
+        notifyListeners();
+        return;
+      }
+    }
+
+    // 2. Ensure backend sidecar is running on desktop
     final port = await BackendSidecarService.instance.ensureBackendRunning();
-    api.setBaseUrl('http://127.0.0.1:$port');
-    auditStream.setWsUrl('ws://127.0.0.1:$port/api/audit/ws');
+    final defaultUrl = savedUrl ?? 'http://127.0.0.1:$port';
+    api.setBaseUrl(defaultUrl);
+    auditStream.setWsUrl(BackendConfigService.toWebSocketUrl(defaultUrl));
 
     isBackendOnline = await api.checkHealth(retries: 5, delay: const Duration(milliseconds: 500));
     if (isBackendOnline) {
@@ -145,7 +170,7 @@ class AppState extends ChangeNotifier {
       ]);
       _initAuditStream();
     } else {
-      errorMessage = 'RevVault backend service is not running on port $port.';
+      errorMessage = 'RevVault backend service is not reachable at $defaultUrl.';
     }
 
     isLoading = false;
@@ -153,8 +178,10 @@ class AppState extends ChangeNotifier {
   }
 
   void _initAuditStream() {
+    _auditSubscription?.cancel();
+    auditStream.disconnect();
     auditStream.connect();
-    auditStream.stream.listen((event) {
+    _auditSubscription = auditStream.stream.listen((event) {
       // Add to front of audit list
       auditEvents.insert(0, event);
       if (auditEvents.length > 200) {
@@ -162,6 +189,48 @@ class AppState extends ChangeNotifier {
       }
       notifyListeners();
     });
+  }
+
+  /// Dynamically updates the backend URL, saves to preferences, and reinitializes connections.
+  Future<bool> updateBackendUrl(String newUrl, {bool persist = true}) async {
+    final normalized = BackendConfigService.normalizeUrl(newUrl);
+    final wsUrl = BackendConfigService.toWebSocketUrl(normalized);
+
+    isLoading = true;
+    notifyListeners();
+
+    api.setBaseUrl(normalized);
+    auditStream.setWsUrl(wsUrl);
+
+    final online = await api.checkHealth(retries: 3, delay: const Duration(milliseconds: 400));
+    isBackendOnline = online;
+
+    if (online) {
+      customBackendUrl = normalized;
+      if (persist) {
+        await BackendConfigService.saveUrl(normalized);
+      }
+      errorMessage = null;
+      await loadConnections();
+      await Future.wait([
+        loadSchema(refresh: true),
+        loadSavedQueries(),
+      ]);
+      _initAuditStream();
+    } else {
+      errorMessage = 'Cannot reach RevVault backend at $normalized';
+    }
+
+    isLoading = false;
+    notifyListeners();
+    return online;
+  }
+
+  /// Resets to default backend URL (localhost sidecar) and clears stored preference.
+  Future<void> resetBackendUrl() async {
+    await BackendConfigService.resetToDefault();
+    customBackendUrl = null;
+    await init();
   }
 
   Future<void> loadConnections() async {
@@ -579,6 +648,7 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
+    _auditSubscription?.cancel();
     BackendSidecarService.instance.terminate();
     auditStream.dispose();
     super.dispose();
