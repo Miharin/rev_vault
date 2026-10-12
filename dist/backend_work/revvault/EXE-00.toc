@@ -59,7 +59,7 @@
  [],
  True,
  False,
- 1791524025,
+ 1791528924,
  [('run',
    '/home/miharin/Documents/Project/rev_vault/backend/.venv/lib/python3.14/site-packages/PyInstaller/bootloader/Linux-64bit-intel/run',
    'EXECUTABLE')],

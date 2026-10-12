@@ -1,4 +1,5 @@
 import asyncio
+import re
 import time
 from typing import Dict, Any, List, Optional, Tuple
 import aiosqlite
@@ -170,16 +171,18 @@ class DatabaseManager:
             db.row_factory = aiosqlite.Row
             async with db.execute(sql) as cursor:
                 columns = [d[0] for d in cursor.description] if cursor.description else []
-                rows_raw = await cursor.fetchall()
-                elapsed = (time.perf_counter() - start_time) * 1000.0
+                rows_raw = await cursor.fetchall() if cursor.description else []
+                affected = cursor.rowcount
+            await db.commit()
+            elapsed = (time.perf_counter() - start_time) * 1000.0
 
-                rows = [list(r) for r in rows_raw]
-                return QueryResult(
-                    columns=columns,
-                    rows=rows,
-                    row_count=len(rows),
-                    execution_time_ms=elapsed
-                )
+            rows = [list(r) for r in rows_raw]
+            return QueryResult(
+                columns=columns,
+                rows=rows,
+                row_count=len(rows) if columns else max(0, affected),
+                execution_time_ms=elapsed
+            )
 
     @staticmethod
     def _auto_cast_mismatched_sql(sql: str) -> str:
@@ -241,10 +244,17 @@ class DatabaseManager:
                             row_vals.append(str(val) if val is not None and not isinstance(val, (int, float, bool)) else val)
                     rows.append(row_vals)
 
+                statusmsg = stmt.get_statusmsg() or ""
+                affected = 0
+                if statusmsg:
+                    m = re.search(r'\b(?:INSERT\s+\d+\s+|UPDATE\s+|DELETE\s+|MOVE\s+|FETCH\s+)(\d+)', statusmsg)
+                    if m:
+                        affected = int(m.group(1))
+
                 return QueryResult(
                     columns=columns,
                     rows=rows,
-                    row_count=len(rows),
+                    row_count=len(rows) if columns else affected,
                     execution_time_ms=elapsed
                 )
             except Exception as e:
@@ -266,10 +276,17 @@ class DatabaseManager:
                                     row_vals.append(str(val) if val is not None and not isinstance(val, (int, float, bool)) else val)
                             rows.append(row_vals)
 
+                        statusmsg = stmt.get_statusmsg() or ""
+                        affected = 0
+                        if statusmsg:
+                            m = re.search(r'\b(?:INSERT\s+\d+\s+|UPDATE\s+|DELETE\s+|MOVE\s+|FETCH\s+)(\d+)', statusmsg)
+                            if m:
+                                affected = int(m.group(1))
+
                         return QueryResult(
                             columns=columns,
                             rows=rows,
-                            row_count=len(rows),
+                            row_count=len(rows) if columns else affected,
                             execution_time_ms=elapsed
                         )
                 raise e

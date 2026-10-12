@@ -5,6 +5,8 @@ import '../models/table_schema.dart';
 import '../models/query_result.dart';
 import '../models/audit_event.dart';
 import '../models/saved_query.dart';
+import '../models/mutation_record.dart';
+import '../models/workspace_tab.dart';
 import '../services/api_service.dart';
 import '../services/audit_stream_service.dart';
 import '../services/sql_autocomplete_service.dart';
@@ -122,8 +124,45 @@ class AppState extends ChangeNotifier {
 
   List<SavedQuery> savedQueries = [];
 
-  QueryResult? lastQueryResult;
-  bool isExecutingQuery = false;
+  // Multi-Tab Workspace State
+  final List<WorkspaceTab> tabs = [
+    WorkspaceTab(
+      id: 'tab_init',
+      title: 'Query 1',
+      type: WorkspaceTabType.sqlQuery,
+      queryText: 'SELECT * FROM users LIMIT 10;',
+    ),
+  ];
+  int activeTabIndex = 0;
+
+  WorkspaceTab get activeTab {
+    if (tabs.isEmpty) {
+      tabs.add(WorkspaceTab(
+        id: 'tab_init',
+        title: 'Query 1',
+        type: WorkspaceTabType.sqlQuery,
+        queryText: 'SELECT * FROM users LIMIT 10;',
+      ));
+      activeTabIndex = 0;
+    }
+    if (activeTabIndex < 0 || activeTabIndex >= tabs.length) {
+      activeTabIndex = 0;
+    }
+    return tabs[activeTabIndex];
+  }
+
+  QueryResult? get lastQueryResult => activeTab.result;
+  set lastQueryResult(QueryResult? r) {
+    activeTab.result = r;
+    notifyListeners();
+  }
+
+  bool get isExecutingQuery => activeTab.isExecuting;
+  set isExecutingQuery(bool v) {
+    activeTab.isExecuting = v;
+    notifyListeners();
+  }
+
   bool safeMode = true;
   bool isSchemaLoading = false;
 
@@ -384,7 +423,11 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  String editorQueryText = 'SELECT * FROM users LIMIT 10;';
+  String get editorQueryText => activeTab.queryText;
+  set editorQueryText(String sql) {
+    activeTab.queryText = sql;
+    notifyListeners();
+  }
 
   void loadSavedQuery(SavedQuery query) {
     editorQueryText = query.sql;
@@ -393,20 +436,39 @@ class AppState extends ChangeNotifier {
 
   void setEditorQueryText(String sql) {
     editorQueryText = sql;
-    notifyListeners();
   }
 
   void formatEditorSql() {
     editorQueryText = SqlAutocompleteService().formatSql(editorQueryText);
+  }
+
+  String? get activePreviewTable => activeTab.tableName;
+  set activePreviewTable(String? tbl) {
+    activeTab.tableName = tbl;
     notifyListeners();
   }
 
-  String? activePreviewTable;
-  int previewPage = 1;
+  int get previewPage => activeTab.page;
+  set previewPage(int p) {
+    activeTab.page = p;
+    notifyListeners();
+  }
+
   int previewPageSize = 25;
 
-  int queryPage = 1;
-  int queryPageSize = 100;
+  int get queryPage => activeTab.page;
+  set queryPage(int p) {
+    activeTab.page = p;
+    notifyListeners();
+  }
+
+  int get queryPageSize => activeTab.pageSize;
+  set queryPageSize(int size) {
+    activeTab.pageSize = size;
+    activeLimit = size;
+    notifyListeners();
+  }
+
   int? activeLimit = 100;
 
   void setActiveLimit(int? limit) {
@@ -417,15 +479,275 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setQueryPageSize(int size) {
-    queryPageSize = size;
-    activeLimit = size;
+  void updateEditorQuery(String sql) {
+    editorQueryText = sql;
+  }
+
+  void openQueryTab({String? initialSql, String? title}) {
+    final count = tabs.where((t) => t.isSqlQuery).length + 1;
+    final tab = WorkspaceTab(
+      id: 'tab_${DateTime.now().microsecondsSinceEpoch}',
+      title: title ?? 'Query $count',
+      type: WorkspaceTabType.sqlQuery,
+      queryText: initialSql ?? 'SELECT * FROM users LIMIT 10;',
+      pageSize: activeLimit ?? 100,
+    );
+    tabs.add(tab);
+    activeTabIndex = tabs.length - 1;
     notifyListeners();
   }
 
-  void updateEditorQuery(String sql) {
-    editorQueryText = sql;
+  Future<void> openTableTab(String tableName, {bool forceReload = false}) async {
+    final existingIdx = tabs.indexWhere((t) => t.isTablePreview && t.tableName == tableName);
+    if (existingIdx != -1) {
+      activeTabIndex = existingIdx;
+      if (forceReload || tabs[existingIdx].result == null) {
+        await previewTable(tableName, page: tabs[existingIdx].page);
+      } else {
+        notifyListeners();
+      }
+      return;
+    }
+
+    final rawName = tableName.contains('.') ? tableName.split('.').last : tableName;
+    final metadata = tables.cast<TableMetadata?>().firstWhere(
+      (t) => t?.name == tableName,
+      orElse: () => null,
+    );
+
+    final tab = WorkspaceTab(
+      id: 'tab_table_${DateTime.now().microsecondsSinceEpoch}',
+      title: rawName,
+      type: WorkspaceTabType.tablePreview,
+      tableName: tableName,
+      tableMetadata: metadata,
+      pageSize: previewPageSize,
+      page: 1,
+    );
+    tabs.add(tab);
+    activeTabIndex = tabs.length - 1;
     notifyListeners();
+    await previewTable(tableName, page: 1);
+  }
+
+  void closeTab(int index) {
+    if (index < 0 || index >= tabs.length) return;
+    if (tabs.length == 1) {
+      tabs[0] = WorkspaceTab(
+        id: 'tab_${DateTime.now().microsecondsSinceEpoch}',
+        title: 'Query 1',
+        type: WorkspaceTabType.sqlQuery,
+        queryText: 'SELECT * FROM users LIMIT 10;',
+      );
+      activeTabIndex = 0;
+      notifyListeners();
+      return;
+    }
+
+    tabs.removeAt(index);
+    if (activeTabIndex >= tabs.length) {
+      activeTabIndex = tabs.length - 1;
+    }
+    notifyListeners();
+  }
+
+  void closeActiveTab() {
+    closeTab(activeTabIndex);
+  }
+
+  void setActiveTab(int index) {
+    if (index >= 0 && index < tabs.length && index != activeTabIndex) {
+      activeTabIndex = index;
+      notifyListeners();
+    }
+  }
+
+  void nextTab() {
+    if (tabs.length > 1) {
+      activeTabIndex = (activeTabIndex + 1) % tabs.length;
+      notifyListeners();
+    }
+  }
+
+  void previousTab() {
+    if (tabs.length > 1) {
+      activeTabIndex = (activeTabIndex - 1 + tabs.length) % tabs.length;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> updateTableRow({
+    required String tableName,
+    required Map<String, dynamic> primaryKeys,
+    required Map<String, dynamic> updatedValues,
+  }) async {
+    try {
+      final res = await api.mutateRow(
+        tableName: tableName,
+        operation: 'update',
+        primaryKeys: primaryKeys,
+        updatedValues: updatedValues,
+      );
+      if (res['success'] == true) {
+        if (activeTab.isTablePreview && activeTab.tableName != null) {
+          await previewTable(activeTab.tableName!, page: activeTab.page);
+        } else if (activeTab.queryText.isNotEmpty) {
+          await runQuery(activeTab.queryText);
+        }
+        fetchMutationHistory();
+        return true;
+      } else {
+        errorMessage = res['error']?.toString() ?? 'Failed to update row';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      errorMessage = 'Row update failed: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> deleteTableRow({
+    required String tableName,
+    required Map<String, dynamic> primaryKeys,
+  }) async {
+    try {
+      final res = await api.mutateRow(
+        tableName: tableName,
+        operation: 'delete',
+        primaryKeys: primaryKeys,
+      );
+      if (res['success'] == true) {
+        if (activeTab.isTablePreview && activeTab.tableName != null) {
+          await previewTable(activeTab.tableName!, page: activeTab.page);
+        } else if (activeTab.queryText.isNotEmpty) {
+          await runQuery(activeTab.queryText);
+        }
+        fetchMutationHistory();
+        return true;
+      } else {
+        errorMessage = res['error']?.toString() ?? 'Failed to delete row';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      errorMessage = 'Row deletion failed: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> insertTableRow({
+    required String tableName,
+    required Map<String, dynamic> rowValues,
+  }) async {
+    try {
+      final res = await api.mutateRow(
+        tableName: tableName,
+        operation: 'insert',
+        updatedValues: rowValues,
+      );
+      if (res['success'] == true) {
+        if (activeTab.isTablePreview && activeTab.tableName != null) {
+          await previewTable(activeTab.tableName!, page: activeTab.page);
+        } else if (activeTab.queryText.isNotEmpty) {
+          await runQuery(activeTab.queryText);
+        }
+        fetchMutationHistory();
+        return true;
+      } else {
+        errorMessage = res['error']?.toString() ?? 'Failed to insert row';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      errorMessage = 'Row insert failed: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> duplicateTableRow({
+    required String tableName,
+    List<Map<String, dynamic>>? rowsToInsert,
+    Map<String, dynamic>? rowValuesWithoutPks,
+    int count = 1,
+  }) async {
+    try {
+      final List<Map<String, dynamic>> targetRows = rowsToInsert ??
+          List.generate(count, (_) => rowValuesWithoutPks ?? <String, dynamic>{});
+
+      int successCount = 0;
+      for (int i = 0; i < targetRows.length; i++) {
+        final row = targetRows[i];
+        final res = await api.mutateRow(
+          tableName: tableName,
+          operation: 'insert',
+          updatedValues: row,
+        );
+        if (res['success'] == true) {
+          successCount++;
+        } else {
+          errorMessage = res['error']?.toString() ?? 'Failed during row duplication';
+          notifyListeners();
+          break;
+        }
+      }
+      if (successCount > 0) {
+        if (activeTab.isTablePreview && activeTab.tableName != null) {
+          await previewTable(activeTab.tableName!, page: activeTab.page);
+        } else if (activeTab.queryText.isNotEmpty) {
+          await runQuery(activeTab.queryText);
+        }
+        fetchMutationHistory();
+        return successCount == targetRows.length;
+      }
+      return false;
+    } catch (e) {
+      errorMessage = 'Row duplication failed: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  List<MutationRecord> mutationHistory = [];
+  bool isLoadingHistory = false;
+
+  Future<void> fetchMutationHistory() async {
+    isLoadingHistory = true;
+    notifyListeners();
+    try {
+      mutationHistory = await api.getMutationHistory();
+    } catch (_) {
+      mutationHistory = [];
+    } finally {
+      isLoadingHistory = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> recoverMutation(String historyId) async {
+    try {
+      final res = await api.recoverMutation(historyId);
+      if (res['success'] == true) {
+        await fetchMutationHistory();
+        if (activeTab.isTablePreview && activeTab.tableName != null) {
+          await previewTable(activeTab.tableName!, page: activeTab.page);
+        } else if (activeTab.queryText.isNotEmpty) {
+          await runQuery(activeTab.queryText);
+        }
+        return true;
+      } else {
+        errorMessage = res['error']?.toString() ?? 'Recovery failed';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      errorMessage = 'Recovery failed: $e';
+      notifyListeners();
+      return false;
+    }
   }
 
   void insertTextIntoEditor(String text) {
@@ -569,6 +891,10 @@ class AppState extends ChangeNotifier {
 
   Future<void> previewTable(String tableName, {int page = 1}) async {
     activePreviewTable = tableName;
+    activeTab.tableMetadata = tables.cast<TableMetadata?>().firstWhere(
+      (t) => t?.name == tableName,
+      orElse: () => null,
+    );
     previewPage = page < 1 ? 1 : page;
     queryPage = previewPage;
     queryPageSize = previewPageSize;

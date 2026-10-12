@@ -11,6 +11,14 @@ import 'widgets/sql_subquery_snippets_modal.dart';
 import 'widgets/sql_autocomplete_dock.dart';
 import 'widgets/api_generator_modal.dart';
 import 'widgets/explain_plan_modal.dart';
+import 'widgets/workspace_tab_bar.dart';
+import 'widgets/row_edit_modal.dart';
+import 'widgets/row_delete_modal.dart';
+import 'widgets/row_insert_modal.dart';
+import 'widgets/row_duplicate_modal.dart';
+import 'widgets/safe_mode_confirm_dialog.dart';
+import 'widgets/mutation_history_modal.dart';
+import '../models/table_schema.dart';
 
 class SqlEditorView extends StatefulWidget {
   const SqlEditorView({super.key});
@@ -24,6 +32,7 @@ class _SqlEditorViewState extends State<SqlEditorView> {
   final FocusNode _editorFocusNode = FocusNode();
   final TextEditingController _tableFilterCtrl = TextEditingController();
   String _tableFilter = '';
+  bool _showOptionDetail = false;
 
   int? _sortColumnIndex;
   bool _sortAscending = true;
@@ -60,6 +69,235 @@ class _SqlEditorViewState extends State<SqlEditorView> {
   void _formatSql() {
     context.read<AppState>().formatEditorSql();
     _queryCtrl.text = context.read<AppState>().editorQueryText;
+  }
+
+  String? _inferTableName(AppState state, [List<String>? resultColumns]) {
+    // 1. If active preview table is set or active tab is a table preview
+    if (state.activePreviewTable != null && state.activePreviewTable!.isNotEmpty) {
+      return state.activePreviewTable;
+    }
+    if (state.activeTab.isTablePreview &&
+        state.activeTab.tableName != null &&
+        state.activeTab.tableName!.isNotEmpty) {
+      return state.activeTab.tableName;
+    }
+
+    // 2. Parse FROM / INTO / UPDATE clause from editor query text
+    final queryText = state.editorQueryText;
+    final match = RegExp(r'\b(?:FROM|INTO|UPDATE)\s+([`"a-zA-Z0-9_.]+)', caseSensitive: false).firstMatch(queryText);
+    if (match != null) {
+      final parsed = match.group(1)!.replaceAll('`', '').replaceAll('"', '').trim();
+      if (parsed.isNotEmpty) {
+        return parsed;
+      }
+    }
+
+    // 3. Match table by column overlap fingerprinting if result columns are known
+    if (resultColumns != null && resultColumns.isNotEmpty) {
+      final best = _findTableByColumns(state, resultColumns);
+      if (best != null) return best.name;
+    }
+
+    // 4. Fallback only if query text has no FROM clause
+    if (state.selectedTable != null) {
+      return state.selectedTable!.name;
+    }
+    return null;
+  }
+
+  TableMetadata? _findTableByColumns(AppState state, List<String> resultColumns) {
+    if (resultColumns.isEmpty) return null;
+    final resColsLower = resultColumns.map((c) => c.toLowerCase()).toSet();
+    TableMetadata? bestMatch;
+    int maxScore = 0;
+
+    for (final t in state.tables) {
+      int score = 0;
+      for (final col in t.columns) {
+        if (resColsLower.contains(col.name.toLowerCase())) {
+          score++;
+        }
+      }
+      if (score > maxScore) {
+        maxScore = score;
+        bestMatch = t;
+      }
+    }
+    if (bestMatch != null && (maxScore >= 2 || (resultColumns.length == 1 && maxScore == 1))) {
+      return bestMatch;
+    }
+    return null;
+  }
+
+  TableMetadata? _findTableMetadata(AppState state, String tbl, [List<String>? resultColumns]) {
+    // 1. Direct tab metadata if present
+    if (state.activeTab.isTablePreview && state.activeTab.tableMetadata != null) {
+      if (tbl.isEmpty || state.activeTab.tableName?.toLowerCase() == tbl.toLowerCase()) {
+        return state.activeTab.tableMetadata;
+      }
+    }
+
+    final cleanTbl = tbl.trim().replaceAll('"', '').replaceAll('`', '');
+
+    // 2. Exact match by full name (e.g. "rawat_inap_rme.cara_keluar" or "cara_keluar")
+    if (cleanTbl.isNotEmpty) {
+      for (final t in state.tables) {
+        if (t.name.toLowerCase() == cleanTbl.toLowerCase()) return t;
+      }
+    }
+
+    // 3. Match by raw table name (e.g. "cara_keluar" without schema prefix)
+    final rawTbl = cleanTbl.contains('.') ? cleanTbl.split('.').last : cleanTbl;
+    final candidates = <TableMetadata>[];
+    if (rawTbl.isNotEmpty) {
+      for (final t in state.tables) {
+        if (t.rawName.toLowerCase() == rawTbl.toLowerCase() ||
+            t.name.toLowerCase() == rawTbl.toLowerCase() ||
+            (t.name.contains('.') && t.name.split('.').last.toLowerCase() == rawTbl.toLowerCase())) {
+          candidates.add(t);
+        }
+      }
+    }
+
+    // If multiple candidate tables exist with the same name across schemas
+    // or if result columns are provided, score by matching column names
+    if (resultColumns != null && resultColumns.isNotEmpty) {
+      final searchPool = candidates.isNotEmpty ? candidates : state.tables;
+      final resColsLower = resultColumns.map((c) => c.toLowerCase()).toSet();
+      TableMetadata? bestMatch;
+      int maxScore = 0;
+
+      for (final t in searchPool) {
+        int score = 0;
+        for (final col in t.columns) {
+          if (resColsLower.contains(col.name.toLowerCase())) {
+            score++;
+          }
+        }
+        if (score > maxScore) {
+          maxScore = score;
+          bestMatch = t;
+        }
+      }
+
+      if (bestMatch != null && maxScore > 0) {
+        return bestMatch;
+      }
+    }
+
+    if (candidates.isNotEmpty) return candidates.first;
+
+    // 4. Fallback: column fingerprinting across all tables
+    if (resultColumns != null && resultColumns.isNotEmpty) {
+      return _findTableByColumns(state, resultColumns);
+    }
+
+    return null;
+  }
+
+  void _openInsertRowModal(BuildContext context, AppState state, dynamic res) {
+    final columnsList = List<String>.from(res.columns);
+    final tbl = _inferTableName(state, columnsList);
+    if (tbl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot identify target table to insert row')),
+      );
+      return;
+    }
+    final meta = _findTableMetadata(state, tbl, columnsList);
+    showRowInsertModal(
+      context: context,
+      tableName: tbl,
+      columns: columnsList,
+      tableMetadata: meta,
+      onInsert: ({required rowValues}) async {
+        if (state.safeMode) {
+          final confirmed = await showSafeModeConfirmDialog(
+            context: context,
+            operation: 'insert',
+            tableName: tbl,
+            primaryKeys: const {},
+            changes: rowValues.map((k, v) => MapEntry(k, {'old': null, 'new': v})),
+          );
+          if (confirmed != true) return 'Operation cancelled in Safe Mode confirmation dialog.';
+        }
+
+        final ok = await state.insertTableRow(
+          tableName: tbl,
+          rowValues: rowValues,
+        );
+        if (ok && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Row inserted successfully'),
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+              width: 280,
+            ),
+          );
+          return null;
+        }
+        return state.errorMessage ?? 'Row insert failed. Check database constraints or logs.';
+      },
+    );
+  }
+
+  void _openDuplicateRowModal(
+    BuildContext context,
+    AppState state,
+    dynamic res,
+    int rowIndex,
+    List<dynamic> rowValues,
+  ) {
+    final columnsList = List<String>.from(res.columns);
+    final tbl = _inferTableName(state, columnsList);
+    if (tbl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot identify target table to duplicate row')),
+      );
+      return;
+    }
+    final meta = _findTableMetadata(state, tbl, columnsList);
+    showRowDuplicateModal(
+      context: context,
+      tableName: tbl,
+      columns: columnsList,
+      rowValues: rowValues,
+      tableMetadata: meta,
+      onDuplicate: ({required rowsToInsert, required count}) async {
+        if (state.safeMode) {
+          final previewChanges = rowsToInsert.isNotEmpty
+              ? rowsToInsert.first.map((k, v) => MapEntry(k, {'old': null, 'new': v}))
+              : <String, dynamic>{};
+          final confirmed = await showSafeModeConfirmDialog(
+            context: context,
+            operation: 'insert',
+            tableName: tbl,
+            primaryKeys: const {},
+            changes: previewChanges,
+          );
+          if (confirmed != true) return 'Operation cancelled in Safe Mode confirmation dialog.';
+        }
+
+        final ok = await state.duplicateTableRow(
+          tableName: tbl,
+          rowsToInsert: rowsToInsert,
+          count: count,
+        );
+        if (ok && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Duplicated $count row(s) successfully'),
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+              width: 280,
+            ),
+          );
+          return null;
+        }
+        return state.errorMessage ?? 'Duplication failed. Check database constraints or logs.';
+      },
+    );
   }
 
   void _onQueryChanged(String text) {
@@ -201,6 +439,7 @@ class _SqlEditorViewState extends State<SqlEditorView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const WorkspaceTabBar(),
               // SQL Editor Toolbar (Adaptive Mobile / Desktop)
               Container(
                 width: double.infinity,
@@ -543,18 +782,6 @@ class _SqlEditorViewState extends State<SqlEditorView> {
             shortcutLabel: 'Ctrl+Enter',
             isExecuting: state.isExecutingQuery,
           ),
-          const SizedBox(width: 10),
-
-          // Subquery Snippets Button
-          ElevatedButton.icon(
-            onPressed: _openSubquerySnippets,
-            icon: const Icon(Icons.hub_outlined, size: 15, color: Colors.purpleAccent),
-            label: const Text('Subquery & CTEs', style: TextStyle(fontSize: 12)),
-            style: ElevatedButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            ),
-          ),
           const SizedBox(width: 8),
 
           // Format SQL Button
@@ -569,90 +796,33 @@ class _SqlEditorViewState extends State<SqlEditorView> {
           ),
           const SizedBox(width: 8),
 
-          // Generate Backend API Button
+          // Consolidated Tools & Actions BottomSheet Button
           ElevatedButton.icon(
-            onPressed: () => showApiGeneratorModal(context, query: _queryCtrl.text),
-            icon: const Icon(Icons.api, size: 15, color: Color(0xFF14B8A6)),
-            label: const Text('Generate API', style: TextStyle(fontSize: 12)),
-            style: ElevatedButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Convert Function Button
-          ElevatedButton.icon(
-            onPressed: () => showConvertCodeModal(context),
-            icon: const Icon(Icons.transform, size: 15, color: Colors.cyanAccent),
-            label: const Text('Convert Function', style: TextStyle(fontSize: 12)),
-            style: ElevatedButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Explain Plan Button
-          ElevatedButton.icon(
-            onPressed: () => showExplainPlanModal(context, query: _queryCtrl.text),
-            icon: const Icon(Icons.analytics_outlined, size: 15, color: Colors.amberAccent),
-            label: const Text('Explain Plan', style: TextStyle(fontSize: 12)),
-            style: ElevatedButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Save Query Button
-          OutlinedButton.icon(
-            onPressed: () => showSaveQueryDialog(context),
-            icon: const Icon(Icons.bookmark_add_outlined, size: 15),
-            label: const Text('Save Query', style: TextStyle(fontSize: 12)),
-            style: OutlinedButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Saved Queries Button
-          ElevatedButton.icon(
-            onPressed: () => showSavedQueriesModal(context),
-            icon: const Icon(Icons.bookmarks_outlined, size: 15),
-            label: Text(
-              'Saved Queries (${state.savedQueries.length})',
-              style: const TextStyle(fontSize: 12),
+            onPressed: () => _openToolsBottomSheet(context, state),
+            icon: const Icon(Icons.auto_awesome_mosaic_outlined, size: 15, color: Color(0xFF14B8A6)),
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Tools & Utilities', style: TextStyle(fontSize: 12)),
+                if (state.savedQueries.isNotEmpty) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF14B8A6).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${state.savedQueries.length}',
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF14B8A6)),
+                    ),
+                  ),
+                ],
+                const SizedBox(width: 3),
+                const Icon(Icons.arrow_drop_down, size: 16),
+              ],
             ),
             style: ElevatedButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Auto-Helper Toggle Button
-          OutlinedButton.icon(
-            onPressed: () {
-              setState(() {
-                _isAutoSuggestEnabled = !_isAutoSuggestEnabled;
-                if (!_isAutoSuggestEnabled) _hideAutocomplete();
-              });
-            },
-            icon: Icon(
-              _isAutoSuggestEnabled ? Icons.auto_awesome : Icons.auto_awesome_outlined,
-              size: 15,
-              color: _isAutoSuggestEnabled ? Colors.tealAccent : Colors.grey,
-            ),
-            label: Text(
-              _isAutoSuggestEnabled ? 'Auto-Helper: ON' : 'Auto-Helper: OFF',
-              style: TextStyle(
-                fontSize: 11.5,
-                color: _isAutoSuggestEnabled ? Colors.tealAccent : Colors.grey,
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
               visualDensity: VisualDensity.compact,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             ),
@@ -747,6 +917,219 @@ class _SqlEditorViewState extends State<SqlEditorView> {
           ),
         ],
       ),
+    );
+  }
+
+  void _openToolsBottomSheet(BuildContext context, AppState state) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+
+        return SafeArea(
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.75,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Cyber Drag Handle
+                Center(
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // BottomSheet Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF14B8A6).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF14B8A6).withValues(alpha: 0.3)),
+                      ),
+                      child: const Icon(Icons.auto_awesome_mosaic_outlined, color: Color(0xFF14B8A6), size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'SQL Tools & Utilities',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 0.3),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                const Divider(height: 1),
+                const SizedBox(height: 8),
+
+                // Tools List
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      _buildBottomSheetTile(
+                        ctx,
+                        icon: Icons.hub_outlined,
+                        iconColor: Colors.purpleAccent,
+                        title: 'Subquery & CTEs',
+                        subtitle: 'Templates for CTEs, EXISTS, correlated subqueries, and window functions',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _openSubquerySnippets();
+                        },
+                      ),
+                      _buildBottomSheetTile(
+                        ctx,
+                        icon: Icons.api,
+                        iconColor: const Color(0xFF14B8A6),
+                        title: 'Generate Backend API',
+                        subtitle: 'Scaffold FastAPI, Express, or Go code directly from this query',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          showApiGeneratorModal(context, query: _queryCtrl.text);
+                        },
+                      ),
+                      _buildBottomSheetTile(
+                        ctx,
+                        icon: Icons.transform,
+                        iconColor: Colors.cyanAccent,
+                        title: 'Convert Function',
+                        subtitle: 'Turn SQL into Python, JS/TS, or Dart repository method',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          showConvertCodeModal(context);
+                        },
+                      ),
+                      _buildBottomSheetTile(
+                        ctx,
+                        icon: Icons.analytics_outlined,
+                        iconColor: Colors.amberAccent,
+                        title: 'Explain Plan',
+                        subtitle: 'Analyze visual execution tree, cost estimates, and table scans',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          showExplainPlanModal(context, query: _queryCtrl.text);
+                        },
+                      ),
+                      _buildBottomSheetTile(
+                        ctx,
+                        icon: Icons.bookmark_add_outlined,
+                        iconColor: Colors.blueAccent,
+                        title: 'Save Query',
+                        subtitle: 'Bookmark current SQL query into your saved workspace catalog',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          showSaveQueryDialog(context);
+                        },
+                      ),
+                      _buildBottomSheetTile(
+                        ctx,
+                        icon: Icons.bookmarks_outlined,
+                        iconColor: Colors.lightBlueAccent,
+                        title: 'Saved Queries (${state.savedQueries.length})',
+                        subtitle: 'Browse, manage, and recall your saved queries catalog',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          showSavedQueriesModal(context);
+                        },
+                      ),
+                      _buildBottomSheetTile(
+                        ctx,
+                        icon: Icons.history_toggle_off,
+                        iconColor: Colors.orangeAccent,
+                        title: 'Disaster Recovery Vault',
+                        subtitle: 'Audit trail of recent mutations with one-click rollback/recovery',
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          showMutationHistoryModal(context);
+                        },
+                      ),
+                      _buildBottomSheetTile(
+                        ctx,
+                        icon: _isAutoSuggestEnabled ? Icons.auto_awesome : Icons.auto_awesome_outlined,
+                        iconColor: _isAutoSuggestEnabled ? Colors.tealAccent : Colors.grey,
+                        title: _isAutoSuggestEnabled ? 'Auto-Helper: ON' : 'Auto-Helper: OFF',
+                        subtitle: 'Smart inline SQL suggestions, tables, columns, and keywords',
+                        trailing: Switch(
+                          value: _isAutoSuggestEnabled,
+                          onChanged: (val) {
+                            setState(() {
+                              _isAutoSuggestEnabled = val;
+                              if (!_isAutoSuggestEnabled) _hideAutocomplete();
+                            });
+                            Navigator.of(ctx).pop();
+                          },
+                          activeTrackColor: const Color(0xFF14B8A6),
+                        ),
+                        onTap: () {
+                          setState(() {
+                            _isAutoSuggestEnabled = !_isAutoSuggestEnabled;
+                            if (!_isAutoSuggestEnabled) _hideAutocomplete();
+                          });
+                          Navigator.of(ctx).pop();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBottomSheetTile(
+    BuildContext context, {
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    Widget? trailing,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    return ListTile(
+      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      leading: Container(
+        padding: const EdgeInsets.all(7),
+        decoration: BoxDecoration(
+          color: iconColor.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Icon(icon, size: 16, color: iconColor),
+      ),
+      title: Text(title, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+      ),
+      trailing: trailing ?? const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
+      onTap: onTap,
     );
   }
 
@@ -957,6 +1340,62 @@ class _SqlEditorViewState extends State<SqlEditorView> {
                     ),
                   ),
                 ),
+                const SizedBox(width: 10),
+
+                // Option Detail Toggle (PK, FK, Data Types in Table Header)
+                InkWell(
+                  onTap: () => setState(() => _showOptionDetail = !_showOptionDetail),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    height: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: _showOptionDetail
+                          ? const Color(0xFF14B8A6).withValues(alpha: 0.15)
+                          : Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: _showOptionDetail
+                            ? const Color(0xFF14B8A6)
+                            : Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _showOptionDetail ? Icons.check_box : Icons.check_box_outline_blank,
+                          size: 14,
+                          color: _showOptionDetail ? const Color(0xFF14B8A6) : Colors.grey,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Option Detail',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: _showOptionDetail ? FontWeight.bold : FontWeight.w500,
+                            color: _showOptionDetail ? const Color(0xFF14B8A6) : Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Insert Row Action Button
+                ElevatedButton.icon(
+                  onPressed: () => _openInsertRowModal(context, state, res),
+                  icon: const Icon(Icons.add, size: 14),
+                  label: const Text('Insert Row', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF14B8A6),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                    minimumSize: const Size(0, 32),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
               ],
             ),
           ),
@@ -984,6 +1423,12 @@ class _SqlEditorViewState extends State<SqlEditorView> {
                       rows: rowsToDisplay,
                       sortColumnIndex: _sortColumnIndex,
                       sortAscending: _sortAscending,
+                      isSafeMode: state.safeMode,
+                      showColumnDetails: _showOptionDetail,
+                      tableMetadata: _findTableMetadata(state, _inferTableName(state, res.columns) ?? '', res.columns),
+                      allTables: state.tables,
+                      onDuplicateRow: (rowIndex, rowValues) =>
+                          _openDuplicateRowModal(context, state, res, rowIndex, rowValues),
                       onSort: (columnIndex, ascending) {
                         setState(() {
                           _sortColumnIndex = columnIndex;
@@ -991,6 +1436,206 @@ class _SqlEditorViewState extends State<SqlEditorView> {
                         });
                       },
                       onFilterByCellValue: (col, val) => state.filterByCellValue(col, val),
+                      onInlineCellSave: (rowIndex, colName, oldValue, newValue) async {
+                        final tbl = _inferTableName(state, res.columns);
+                        if (tbl == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Cannot identify target table for inline edit')),
+                          );
+                          return false;
+                        }
+
+                        final meta = _findTableMetadata(state, tbl, res.columns);
+
+                        final rowValues = rowIndex < res.rows.length ? res.rows[rowIndex] : <dynamic>[];
+                        final pkSet = <String>{};
+                        if (meta != null) {
+                          for (final col in meta.columns) {
+                            if (col.isPrimaryKey) pkSet.add(col.name);
+                          }
+                        }
+                        if (pkSet.isEmpty) {
+                          for (final col in res.columns) {
+                            if (col.toLowerCase() == 'id') {
+                              pkSet.add(col);
+                              break;
+                            }
+                          }
+                        }
+
+                        final Map<String, dynamic> pks = {};
+                        if (pkSet.isNotEmpty) {
+                          for (final pkCol in pkSet) {
+                            final idx = res.columns.indexOf(pkCol);
+                            if (idx != -1 && idx < rowValues.length) {
+                              pks[pkCol] = rowValues[idx];
+                            }
+                          }
+                        } else {
+                          for (int i = 0; i < res.columns.length; i++) {
+                            pks[res.columns[i]] = i < rowValues.length ? rowValues[i] : null;
+                          }
+                        }
+
+                        // Safe Mode confirmation pre-check
+                        if (state.safeMode) {
+                          final confirmed = await showSafeModeConfirmDialog(
+                            context: context,
+                            operation: 'update',
+                            tableName: tbl,
+                            primaryKeys: pks,
+                            changes: {
+                              colName: {'old': oldValue, 'new': newValue},
+                            },
+                          );
+                          if (confirmed != true) return false;
+                        }
+
+                        final ok = await state.updateTableRow(
+                          tableName: tbl,
+                          primaryKeys: pks,
+                          updatedValues: {colName: newValue},
+                        );
+
+                        if (ok && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Saved: $colName = $newValue'),
+                              duration: const Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                              width: 280,
+                            ),
+                          );
+                        }
+                        return ok;
+                      },
+                      onEditRow: (rowIndex, rowValues) {
+                        final tbl = _inferTableName(state, res.columns);
+                        if (tbl == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Cannot identify target table for this query')),
+                          );
+                          return;
+                        }
+                        final meta = _findTableMetadata(state, tbl, res.columns);
+                        showRowEditModal(
+                          context: context,
+                          tableName: tbl,
+                          columns: res.columns,
+                          rowValues: rowValues,
+                          tableMetadata: meta,
+                          onSave: ({required primaryKeys, required updatedValues}) async {
+                            if (state.safeMode) {
+                              final changesMap = <String, dynamic>{};
+                              for (final entry in updatedValues.entries) {
+                                final colIdx = res.columns.indexOf(entry.key);
+                                final oldVal = (colIdx != -1 && colIdx < rowValues.length) ? rowValues[colIdx] : null;
+                                changesMap[entry.key] = {'old': oldVal, 'new': entry.value};
+                              }
+                              final confirmed = await showSafeModeConfirmDialog(
+                                context: context,
+                                operation: 'update',
+                                tableName: tbl,
+                                primaryKeys: primaryKeys,
+                                changes: changesMap,
+                              );
+                              if (confirmed != true) return false;
+                            }
+
+                            final ok = await state.updateTableRow(
+                              tableName: tbl,
+                              primaryKeys: primaryKeys,
+                              updatedValues: updatedValues,
+                            );
+                            if (ok && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Record updated successfully'),
+                                  duration: Duration(seconds: 2),
+                                  behavior: SnackBarBehavior.floating,
+                                  width: 280,
+                                ),
+                              );
+                            }
+                            return ok;
+                          },
+                        );
+                      },
+                      onDeleteRow: (rowIndex, rowValues) async {
+                        final tbl = _inferTableName(state, res.columns);
+                        if (tbl == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Cannot identify target table for this query')),
+                          );
+                          return;
+                        }
+                        final meta = _findTableMetadata(state, tbl, res.columns);
+
+                        // If Safe Mode is ON, prompt Safe Mode override confirmation first
+                        if (state.safeMode) {
+                          final pkSet = <String>{};
+                          if (meta != null) {
+                            for (final col in meta.columns) {
+                              if (col.isPrimaryKey) pkSet.add(col.name);
+                            }
+                          }
+                          if (pkSet.isEmpty) {
+                            for (final col in res.columns) {
+                              if (col.toLowerCase() == 'id') {
+                                pkSet.add(col);
+                                break;
+                              }
+                            }
+                          }
+                          final Map<String, dynamic> pks = {};
+                          if (pkSet.isNotEmpty) {
+                            for (final pkCol in pkSet) {
+                              final idx = res.columns.indexOf(pkCol);
+                              if (idx != -1 && idx < rowValues.length) {
+                                pks[pkCol] = rowValues[idx];
+                              }
+                            }
+                          } else {
+                            for (int i = 0; i < res.columns.length; i++) {
+                              pks[res.columns[i]] = i < rowValues.length ? rowValues[i] : null;
+                            }
+                          }
+
+                          final confirmed = await showSafeModeConfirmDialog(
+                            context: context,
+                            operation: 'delete',
+                            tableName: tbl,
+                            primaryKeys: pks,
+                          );
+                          if (confirmed != true) return;
+                        }
+
+                        if (!context.mounted) return;
+                        showRowDeleteModal(
+                          context: context,
+                          tableName: tbl,
+                          columns: res.columns,
+                          rowValues: rowValues,
+                          tableMetadata: meta,
+                          onDelete: ({required primaryKeys}) async {
+                            final ok = await state.deleteTableRow(
+                              tableName: tbl,
+                              primaryKeys: primaryKeys,
+                            );
+                            if (ok && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Record deleted successfully'),
+                                  duration: Duration(seconds: 2),
+                                  behavior: SnackBarBehavior.floating,
+                                  width: 280,
+                                ),
+                              );
+                            }
+                            return ok;
+                          },
+                        );
+                      },
                     ),
         ),
 

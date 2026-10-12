@@ -682,7 +682,7 @@ class _TableRowTileState extends State<_TableRowTile> {
                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                 onPressed: () {
                   state.selectTable(table);
-                  state.previewTable(table.name, page: 1);
+                  state.openTableTab(table.name);
                 },
               ),
               PopupMenuButton<String>(

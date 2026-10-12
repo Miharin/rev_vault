@@ -6,6 +6,7 @@ import '../models/table_schema.dart';
 import '../models/query_result.dart';
 import '../models/audit_event.dart';
 import '../models/saved_query.dart';
+import '../models/mutation_record.dart';
 
 String getDefaultBaseUrl() {
   if (kIsWeb) {
@@ -176,6 +177,38 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> mutateRow({
+    required String tableName,
+    required String operation,
+    Map<String, dynamic>? primaryKeys,
+    Map<String, dynamic>? updatedValues,
+  }) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/query/row/mutate'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'table_name': tableName,
+          'operation': operation,
+          'primary_keys': primaryKeys ?? {},
+          'updated_values': updatedValues,
+        }),
+      );
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+      return {
+        'success': false,
+        'error': 'HTTP error ${res.statusCode}: ${res.body}',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Backend communication error: $e',
+      };
+    }
+  }
+
   Future<QueryResult> previewTable(String tableName, {int page = 1, int pageSize = 25}) async {
     try {
       final res = await http.get(Uri.parse('$baseUrl/api/query/preview/$tableName?page=$page&page_size=$pageSize'));
@@ -286,6 +319,39 @@ class ApiService {
         'engine': 'unknown',
         'warnings': <dynamic>[],
         'recommendations': <dynamic>[],
+      };
+    }
+  }
+
+  Future<List<MutationRecord>> getMutationHistory() async {
+    try {
+      final res = await http.get(Uri.parse('$baseUrl/api/query/history'));
+      if (res.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(res.body);
+        return data.map((e) => MutationRecord.fromJson(e as Map<String, dynamic>)).toList();
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> recoverMutation(String historyId) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/query/history/recover/$historyId'),
+      );
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+      return {
+        'success': false,
+        'error': 'Recovery failed (${res.statusCode}): ${res.body}',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Network error contacting backend: $e',
       };
     }
   }

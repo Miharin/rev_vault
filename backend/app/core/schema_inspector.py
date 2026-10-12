@@ -1,8 +1,11 @@
 from typing import Dict, Any, List, Optional, Tuple
 import time
+import logging
 import aiosqlite
 from app.config import ConnectionConfig
 from app.core.db_manager import db_manager
+
+logger = logging.getLogger("revvault.schema_inspector")
 
 class ForeignKeyMetadata:
     def __init__(
@@ -233,12 +236,12 @@ class SchemaInspector:
                     n.nspname AS table_schema,
                     c.relname AS table_name,
                     a.attname AS column_name,
-                    con.contype AS constraint_type
+                    con.contype::text AS constraint_type
                 FROM pg_constraint con
                 JOIN pg_class c ON c.oid = con.conrelid
                 JOIN pg_namespace n ON n.oid = c.relnamespace
-                JOIN LATERAL unnest(con.conkey) AS attnum ON true
-                JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = attnum
+                JOIN LATERAL unnest(con.conkey) AS k(attnum) ON true
+                JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.attnum
                 WHERE con.contype IN ('p', 'u')
                   AND n.nspname NOT IN ('pg_catalog', 'information_schema')
             """
@@ -246,14 +249,14 @@ class SchemaInspector:
                 c_rows = await conn.fetch(constraint_query)
                 for cr in c_rows:
                     key = f"{cr['table_schema']}.{cr['table_name']}"
-                    c_type = cr["constraint_type"]
+                    c_type = str(cr["constraint_type"]).lower()
                     col = cr["column_name"]
-                    if c_type == "p":
+                    if c_type in ('p', '112'):
                         pk_map.setdefault(key, set()).add(col)
-                    elif c_type == "u":
+                    elif c_type in ('u', '117'):
                         uniq_map.setdefault(key, set()).add(col)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Error querying pg_constraint: {e}")
 
             # 3. Fetch Columns in batch in < 0.08s
             col_query = f"""

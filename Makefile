@@ -57,33 +57,11 @@ release-all:
 
 # Install current Linux release bundle into user environment
 install:
-	@mkdir -p ~/.local/share/revvault ~/.local/bin ~/.local/share/icons/hicolor/256x256/apps ~/.local/share/applications
-	@latest_dir=$$(ls -td dist/revvault-linux-x64-v* 2>/dev/null | head -n 1); \
-	if [ -n "$$latest_dir" ] && [ -d "$$latest_dir" ]; then \
-		echo "Installing RevVault from $$latest_dir to ~/.local/share/revvault..."; \
-		cp -rT "$$latest_dir" ~/.local/share/revvault; \
-	elif [ -f dist/revvault-linux-x64-v*.tar.gz ]; then \
-		echo "Extracting RevVault tarball to ~/.local/share/revvault..."; \
-		tar -xzf dist/revvault-linux-x64-v*.tar.gz -C ~/.local/share/revvault --strip-components=1; \
-	else \
-		echo "Error: No release build found in dist/. Run 'make release-linux' first."; \
-		exit 1; \
-	fi
-	@chmod +x ~/.local/share/revvault/rev_vault ~/.local/share/revvault/backend/revvault-backend
-	@ln -sf ~/.local/share/revvault/rev_vault ~/.local/bin/revvault
-	@cp scripts/appimage/revvault.png ~/.local/share/icons/hicolor/256x256/apps/revvault.png
-	@printf '[Desktop Entry]\nName=RevVault\nGenericName=Database Companion & Agent Hub\nComment=Intelligent Database Companion & Antigravity MCP Service\nExec=%s/.local/share/revvault/rev_vault %%u\nIcon=revvault\nTerminal=false\nType=Application\nCategories=Development;Database;IDE;Utility;\nKeywords=database;sql;sqlite;postgres;antigravity;mcp;\nStartupNotify=true\n' "$$HOME" > ~/.local/share/applications/revvault.desktop
-	@update-desktop-database ~/.local/share/applications 2>/dev/null || true
-	@echo "RevVault successfully installed to ~/.local/share/revvault and ~/.local/bin/revvault."
+	@./scripts/install_tarball.sh
 
 # Remove RevVault from user environment
 uninstall:
-	@rm -rf ~/.local/share/revvault
-	@rm -f ~/.local/bin/revvault
-	@rm -f ~/.local/share/applications/revvault.desktop
-	@rm -f ~/.local/share/icons/hicolor/256x256/apps/revvault.png
-	@update-desktop-database ~/.local/share/applications 2>/dev/null || true
-	@echo "RevVault uninstalled successfully."
+	@./scripts/install_tarball.sh --uninstall
 
 # Configure Linux firewall to allow RevVault port range (8000-8010/tcp)
 allow-firewall:

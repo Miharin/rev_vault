@@ -137,4 +137,42 @@ async def test_schema_cache_and_invalidation(temp_sqlite_db):
     assert len(tables3) == len(tables1)
 
 
+@pytest.mark.asyncio
+async def test_row_mutation_update_and_delete(temp_sqlite_db):
+    # Test update row
+    update_res = await db_manager.execute_query(
+        temp_sqlite_db,
+        "UPDATE users SET name = 'Alice Updated' WHERE id = 1",
+        safe_mode=False
+    )
+    assert update_res.error is None
+    assert update_res.row_count == 1
+
+    # Verify updated row persisted
+    verify_res = await db_manager.execute_query(
+        temp_sqlite_db,
+        "SELECT name FROM users WHERE id = 1",
+        safe_mode=True
+    )
+    assert verify_res.rows[0][0] == "Alice Updated"
+
+    # Test delete row
+    del_res = await db_manager.execute_query(
+        temp_sqlite_db,
+        "DELETE FROM users WHERE id = 2",
+        safe_mode=False
+    )
+    assert del_res.error is None
+    assert del_res.row_count == 1
+
+    # Verify deleted row no longer exists
+    count_res = await db_manager.execute_query(
+        temp_sqlite_db,
+        "SELECT COUNT(*) FROM users",
+        safe_mode=True
+    )
+    assert count_res.rows[0][0] == 1
+
+
+
 

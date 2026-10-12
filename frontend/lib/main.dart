@@ -11,6 +11,7 @@ import 'views/mcp_monitor_view.dart';
 import 'views/widgets/tactical_hud_widgets.dart';
 import 'views/widgets/mobile_connect_modal.dart';
 import 'views/widgets/backend_settings_modal.dart';
+import 'views/widgets/table_picker_modal.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -94,6 +95,19 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
     return isMobilePlatform ? 16.0 : 0.0;
   }
 
+  void _openSchemaPicker(BuildContext context, AppState state) {
+    showTablePickerModal(
+      context: context,
+      title: 'Switch Schema / Table',
+      tables: state.tables,
+      currentTable: state.selectedTable,
+      onSelected: (table) {
+        state.selectTable(table);
+        state.openTableTab(table.name);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -112,6 +126,27 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
         },
         const SingleActivator(LogicalKeyboardKey.keyE, control: true, shift: true): () {
           state.toggleSchemaExplorerHidden();
+        },
+        // Quick Schema & Table Switcher (Ctrl+Shift+S, Ctrl+P, Ctrl+O)
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true, shift: true): () {
+          _openSchemaPicker(context, state);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyP, control: true): () {
+          _openSchemaPicker(context, state);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyO, control: true): () {
+          _openSchemaPicker(context, state);
+        },
+
+        // Workspace Tab Shortcuts (Ctrl+T for new tab, Ctrl+W for close, Ctrl+Tab for cycle)
+        const SingleActivator(LogicalKeyboardKey.keyT, control: true): () {
+          state.openQueryTab();
+        },
+        const SingleActivator(LogicalKeyboardKey.keyW, control: true): () {
+          state.closeActiveTab();
+        },
+        const SingleActivator(LogicalKeyboardKey.tab, control: true): () {
+          state.nextTab();
         },
       },
       child: LayoutBuilder(
@@ -494,6 +529,37 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
           ),
           const SizedBox(width: 6),
         ],
+
+        // Quick Schema Switcher Button
+        InkWell(
+          onTap: () => _openSchemaPicker(context, state),
+          borderRadius: BorderRadius.circular(4),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: accent.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.hub_outlined, size: 11, color: accent),
+                const SizedBox(width: 4),
+                Text(
+                  'SCHEMA',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'monospace',
+                    color: accent,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
 
         // Online Dot & Tap to Configure
         InkWell(

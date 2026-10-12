@@ -156,10 +156,15 @@ void main() {
 
       // Verify buttons in toolbar
       expect(find.text('Run Query'), findsOneWidget);
-      expect(find.text('Subquery & CTEs'), findsOneWidget);
+      expect(find.text('Tools & Utilities'), findsOneWidget);
       expect(find.text('Format SQL'), findsOneWidget);
 
-      // Tap on Subquery & CTEs button
+      // Open Tools & Utilities bottom sheet
+      await tester.tap(find.text('Tools & Utilities'));
+      await tester.pumpAndSettle();
+
+      // Tap on Subquery & CTEs tile
+      expect(find.text('Subquery & CTEs'), findsOneWidget);
       await tester.tap(find.text('Subquery & CTEs'));
       await tester.pumpAndSettle();
 
@@ -202,8 +207,15 @@ void main() {
         ),
       );
 
-      // Verify toolbar has Auto-Helper toggle button
+      // Verify toolbar has Tools & Utilities button
+      expect(find.text('Tools & Utilities'), findsOneWidget);
+
+      // Open Tools & Utilities bottom sheet to verify Auto-Helper: ON
+      await tester.tap(find.text('Tools & Utilities'));
+      await tester.pumpAndSettle();
       expect(find.text('Auto-Helper: ON'), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
 
       // Type in TextField to trigger autocomplete
       await tester.enterText(find.byType(TextField).first, 'SELECT * FROM wh');
@@ -213,14 +225,19 @@ void main() {
       expect(find.textContaining('IntelliSense Assistant'), findsOneWidget);
       expect(find.textContaining('↑/↓: Navigate'), findsOneWidget);
 
-      // Scroll into view & Toggle Auto-Helper to OFF
-      await tester.ensureVisible(find.text('Auto-Helper: ON'));
+      // Open Tools & Utilities & Toggle Auto-Helper to OFF
+      await tester.tap(find.text('Tools & Utilities'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Auto-Helper: ON'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Auto-Helper: OFF'), findsOneWidget);
+      // Verify assistant dismissed and state toggled
       expect(find.textContaining('IntelliSense Assistant'), findsNothing);
+
+      // Re-open Tools & Utilities to confirm toggle text changed to OFF
+      await tester.tap(find.text('Tools & Utilities'));
+      await tester.pumpAndSettle();
+      expect(find.text('Auto-Helper: OFF'), findsOneWidget);
     });
 
     testWidgets('Auto-scrolls choices list when navigating with arrow keys in SqlAutocompleteDock', (tester) async {

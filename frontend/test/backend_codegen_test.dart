@@ -221,13 +221,14 @@ void main() {
         ),
       );
 
-      // Verify Generate API button in toolbar
-      expect(find.text('Generate API'), findsOneWidget);
-
-      // Ensure visible & Tap Generate API button
-      await tester.ensureVisible(find.text('Generate API'));
+      // Open Tools & Utilities bottom sheet
+      expect(find.text('Tools & Utilities'), findsOneWidget);
+      await tester.tap(find.text('Tools & Utilities'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Generate API'));
+
+      // Tap Generate Backend API
+      expect(find.text('Generate Backend API'), findsOneWidget);
+      await tester.tap(find.text('Generate Backend API'));
       await tester.pumpAndSettle();
 
       // Verify Modal Dialog is shown with CRUD operation selector

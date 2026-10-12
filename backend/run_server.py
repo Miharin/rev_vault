@@ -53,6 +53,12 @@ def main():
         default=True,
         help="Automatically probe for an available port if requested port is busy"
     )
+    parser.add_argument(
+        "--reload",
+        action="store_true",
+        default=os.environ.get("REVVAULT_RELOAD", "false").lower() in ("true", "1"),
+        help="Enable auto-reload for development"
+    )
     args, unknown = parser.parse_known_args()
 
     port = find_available_port(args.port) if args.auto_port else args.port
@@ -62,7 +68,10 @@ def main():
     print(f"REVVAULT_ASSIGNED_PORT={port}", flush=True)
     print(f"Starting RevVault Backend & API on http://{args.host}:{port}", flush=True)
 
-    uvicorn.run(app, host=args.host, port=port, reload=False, log_level="info")
+    if args.reload and not getattr(sys, "frozen", False):
+        uvicorn.run("app.main:app", host=args.host, port=port, reload=True, log_level="info")
+    else:
+        uvicorn.run(app, host=args.host, port=port, reload=False, log_level="info")
 
 if __name__ == "__main__":
     main()
