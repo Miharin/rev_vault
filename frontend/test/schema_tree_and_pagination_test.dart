@@ -113,7 +113,7 @@ void main() {
 
     // Find the inner SizedBox that contains the table ListView
     final sizedBoxes = tester.widgetList<SizedBox>(find.descendant(
-      of: find.byType(ExpansionTile),
+      of: find.byType(SchemaTreeView),
       matching: find.byType(SizedBox),
     ));
 
@@ -385,6 +385,120 @@ void main() {
     expect(prevBtnFinder, findsOneWidget);
     final OutlinedButton prevBtn = tester.widget(prevBtnFinder);
     expect(prevBtn.onPressed, isNull);
+  });
+
+  testWidgets('SchemaTreeView two-stage folder click: first click opens schema tab, second click expands tree', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    final state = AppState();
+    state.tables = [
+      TableMetadata(
+        name: 'master.alasan_dirujuk',
+        schema: 'master',
+        rawName: 'alasan_dirujuk',
+        tableType: 'TABLE',
+        columns: [
+          ColumnMetadata(name: 'id', dataType: 'int', isNullable: false, isPrimaryKey: true),
+        ],
+      ),
+      TableMetadata(
+        name: 'antrian_apotek.antrian',
+        schema: 'antrian_apotek',
+        rawName: 'antrian',
+        tableType: 'TABLE',
+        columns: [
+          ColumnMetadata(name: 'id', dataType: 'int', isNullable: false, isPrimaryKey: true),
+        ],
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ChangeNotifierProvider<AppState>.value(
+            value: state,
+            child: const SchemaTreeView(),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('master'), findsOneWidget);
+    expect(find.text('alasan_dirujuk'), findsNothing);
+    expect(state.activeSchemaName, isNull);
+
+    // Click 1: Click folder 'master'
+    await tester.tap(find.text('master'));
+    await tester.pumpAndSettle();
+
+    // Verify: schema tab opened in state, but child table row in sidebar tree is NOT expanded yet
+    expect(state.activeSchemaName, 'master');
+    expect(find.text('alasan_dirujuk'), findsNothing);
+
+    // Click 2: Click folder 'master' again
+    await tester.tap(find.text('master'));
+    await tester.pumpAndSettle();
+
+    // Verify: now child table row is visible in sidebar tree
+    expect(find.text('alasan_dirujuk'), findsOneWidget);
+  });
+
+  testWidgets('SqlEditorView renders SchemaOverviewView when activeTab is schemaOverview', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    final state = AppState();
+    state.tables = [
+      TableMetadata(
+        name: 'master.alasan_dirujuk',
+        schema: 'master',
+        rawName: 'alasan_dirujuk',
+        tableType: 'TABLE',
+        columns: [
+          ColumnMetadata(name: 'id', dataType: 'int', isNullable: false, isPrimaryKey: true),
+          ColumnMetadata(name: 'nama', dataType: 'varchar', isNullable: true, isPrimaryKey: false),
+        ],
+      ),
+      TableMetadata(
+        name: 'master.view_dirujuk',
+        schema: 'master',
+        rawName: 'view_dirujuk',
+        tableType: 'VIEW',
+        columns: [
+          ColumnMetadata(name: 'id', dataType: 'int', isNullable: false, isPrimaryKey: true),
+        ],
+      ),
+    ];
+
+    state.openSchemaTab('master');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ChangeNotifierProvider<AppState>.value(
+            value: state,
+            child: const SqlEditorView(),
+          ),
+        ),
+      ),
+    );
+
+    // Verify SchemaOverviewView is rendered
+    expect(find.text('master'), findsWidgets);
+    expect(find.text('2 total objects • 1 tables • 1 views'), findsOneWidget);
+    expect(find.text('alasan_dirujuk'), findsOneWidget);
+    expect(find.text('view_dirujuk'), findsOneWidget);
+
+    // Tap 'View Data' on alasan_dirujuk
+    await tester.tap(find.widgetWithText(InkWell, 'View Data').first);
+    await tester.pumpAndSettle();
+
+    // Verify openTableTab was called
+    expect(state.activeTab.isTablePreview, true);
+    expect(state.activeTab.tableName, 'master.alasan_dirujuk');
   });
 }
 

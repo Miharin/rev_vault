@@ -4,6 +4,7 @@ import 'table_schema.dart';
 enum WorkspaceTabType {
   sqlQuery,
   tablePreview,
+  schemaOverview,
 }
 
 /// Represents an individual open tab inside the SQL Studio workspace.
@@ -12,6 +13,7 @@ class WorkspaceTab {
   final String id;
   String title;
   WorkspaceTabType type;
+  String? schemaName;
   String? tableName;
   TableMetadata? tableMetadata;
   String queryText;
@@ -27,6 +29,7 @@ class WorkspaceTab {
     required this.id,
     required this.title,
     required this.type,
+    this.schemaName,
     this.tableName,
     this.tableMetadata,
     this.queryText = '',
@@ -41,11 +44,13 @@ class WorkspaceTab {
 
   bool get isTablePreview => type == WorkspaceTabType.tablePreview;
   bool get isSqlQuery => type == WorkspaceTabType.sqlQuery;
+  bool get isSchemaOverview => type == WorkspaceTabType.schemaOverview;
 
   WorkspaceTab copyWith({
     String? id,
     String? title,
     WorkspaceTabType? type,
+    String? schemaName,
     String? tableName,
     TableMetadata? tableMetadata,
     String? queryText,
@@ -61,6 +66,7 @@ class WorkspaceTab {
       id: id ?? this.id,
       title: title ?? this.title,
       type: type ?? this.type,
+      schemaName: schemaName ?? this.schemaName,
       tableName: tableName ?? this.tableName,
       tableMetadata: tableMetadata ?? this.tableMetadata,
       queryText: queryText ?? this.queryText,

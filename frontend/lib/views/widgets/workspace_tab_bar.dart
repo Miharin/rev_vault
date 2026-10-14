@@ -159,6 +159,7 @@ class _WorkspaceTabItemState extends State<_WorkspaceTabItem> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isTable = widget.tab.isTablePreview;
+    final isSchema = widget.tab.isSchemaOverview;
 
     final bg = widget.isActive
         ? theme.colorScheme.surface
@@ -198,9 +199,13 @@ class _WorkspaceTabItemState extends State<_WorkspaceTabItem> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                isTable ? Icons.table_chart_outlined : Icons.terminal,
+                isSchema
+                    ? Icons.folder_copy_outlined
+                    : (isTable ? Icons.table_chart_outlined : Icons.terminal),
                 size: 13,
-                color: widget.isActive ? widget.accentColor : Colors.grey,
+                color: isSchema
+                    ? (widget.isActive ? widget.accentColor : const Color(0xFFF59E0B))
+                    : (widget.isActive ? widget.accentColor : Colors.grey),
               ),
               const SizedBox(width: 6),
               Flexible(

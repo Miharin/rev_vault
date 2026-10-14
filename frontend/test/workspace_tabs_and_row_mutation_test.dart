@@ -77,6 +77,26 @@ void main() {
       expect(state.activeTab.result?.rowCount, 2);
     });
 
+    test('openSchemaTab opens new tab or focuses existing schema tab without duplicates', () {
+      final state = AppState();
+      expect(state.tabs.length, 1);
+
+      state.openSchemaTab('public');
+      expect(state.tabs.length, 2);
+      expect(state.activeTabIndex, 1);
+      expect(state.activeTab.isSchemaOverview, true);
+      expect(state.activeTab.schemaName, 'public');
+      expect(state.activeSchemaName, 'public');
+
+      // Opening again switches to existing tab
+      state.setActiveTab(0);
+      expect(state.activeTabIndex, 0);
+
+      state.openSchemaTab('public');
+      expect(state.tabs.length, 2);
+      expect(state.activeTabIndex, 1);
+    });
+
     test('closeTab handles multiple tabs and prevents empty tab list', () {
       final state = AppState();
       state.openQueryTab(title: 'Query 2');

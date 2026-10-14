@@ -454,7 +454,7 @@ class _SchemaTreeViewState extends State<SchemaTreeView> {
                           key: PageStorageKey('schema_$schemaName'),
                           schemaName: schemaName,
                           tables: tables,
-                          isInitiallyExpanded: isSearching || _sortedSchemas.length == 1,
+                          isInitiallyExpanded: isSearching,
                           transparentTheme: transparentTheme,
                           primary: primary,
                           state: state,
@@ -545,7 +545,8 @@ class _SchemaFolderTileState extends State<_SchemaFolderTile> {
   @override
   Widget build(BuildContext context) {
     final tables = widget.tables;
-    final theme = widget.transparentTheme;
+    final activeSchema = context.select<AppState, String?>((s) => s.activeSchemaName);
+    final isSchemaTabActive = activeSchema == widget.schemaName;
 
     final double available = widget.availableHeight.isFinite && widget.availableHeight > 0
         ? widget.availableHeight
@@ -574,45 +575,96 @@ class _SchemaFolderTileState extends State<_SchemaFolderTile> {
 
     return Material(
       color: Colors.transparent,
-      child: Theme(
-        data: theme,
-        child: ExpansionTile(
-          key: widget.key,
-          initiallyExpanded: _expanded,
-          onExpansionChanged: (v) => setState(() => _expanded = v),
-          leading: const Icon(
-            Icons.folder,
-            size: 16,
-            color: Color(0xFFF59E0B),
-          ),
-          title: Text(
-            widget.schemaName,
-            style: const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: () {
+              if (widget.isSearching) {
+                widget.state.openSchemaTab(widget.schemaName);
+                return;
+              }
+
+              if (!isSchemaTabActive) {
+                // First click: activate/show all tables in right section, keep folder collapsed in tree
+                widget.state.openSchemaTab(widget.schemaName);
+              } else {
+                // Second click (already active schema tab): toggle expansion in tree
+                setState(() => _expanded = !_expanded);
+              }
+            },
+            child: Container(
+              height: _kFolderHeaderHeight,
+              padding: const EdgeInsets.symmetric(horizontal: 10.0),
+              decoration: BoxDecoration(
+                color: isSchemaTabActive
+                    ? widget.primary.withValues(alpha: 0.12)
+                    : Colors.transparent,
+                border: isSchemaTabActive
+                    ? Border(
+                        left: BorderSide(color: widget.primary, width: 3),
+                      )
+                    : null,
+              ),
+              child: Row(
+                children: [
+                  // Dedicated expand/collapse chevron
+                  InkWell(
+                    onTap: () => setState(() => _expanded = !_expanded),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: AnimatedRotation(
+                        turns: _expanded ? 0.25 : 0.0,
+                        duration: const Duration(milliseconds: 180),
+                        child: const Icon(
+                          Icons.chevron_right,
+                          size: 16,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    _expanded ? Icons.folder_open : Icons.folder,
+                    size: 16,
+                    color: const Color(0xFFF59E0B),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      widget.schemaName,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: isSchemaTabActive ? FontWeight.bold : FontWeight.w600,
+                        color: isSchemaTabActive ? widget.primary : null,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  _CountBadge(count: tables.length),
+                ],
+              ),
             ),
           ),
-          trailing: _CountBadge(count: tables.length),
-          children: [
-            if (_expanded)
-              SizedBox(
-                height: listHeight,
-                // ListView.builder virtualizes without itemExtent — only visible
-                // rows are built. This handles expandable column sub-tiles too.
-                child: ListView.builder(
-                  controller: _listScrollCtrl,
-                  physics: const ClampingScrollPhysics(),
-                  itemCount: tables.length,
-                  itemBuilder: (ctx, i) => _TableRowTile(
-                    key: ValueKey(tables[i].name),
-                    table: tables[i],
-                    primary: widget.primary,
-                    state: widget.state,
-                  ),
+          if (_expanded)
+            SizedBox(
+              height: listHeight,
+              child: ListView.builder(
+                controller: _listScrollCtrl,
+                physics: const ClampingScrollPhysics(),
+                itemCount: tables.length,
+                itemBuilder: (ctx, i) => _TableRowTile(
+                  key: ValueKey(tables[i].name),
+                  table: tables[i],
+                  primary: widget.primary,
+                  state: widget.state,
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }

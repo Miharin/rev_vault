@@ -21,9 +21,6 @@ void main() {
 
     test('AppState toggles theme preferences and rail collapse', () {
       final state = AppState();
-      expect(state.themePreference, equals(ThemePreference.circadian));
-
-      state.setThemePreference(ThemePreference.dark);
       expect(state.themePreference, equals(ThemePreference.dark));
       expect(state.isEffectiveDarkMode, isTrue);
 
@@ -31,9 +28,12 @@ void main() {
       expect(state.themePreference, equals(ThemePreference.light));
       expect(state.isEffectiveDarkMode, isFalse);
 
-      expect(state.isRailCollapsed, isFalse);
-      state.toggleRailCollapse();
+      state.setThemePreference(ThemePreference.circadian);
+      expect(state.themePreference, equals(ThemePreference.circadian));
+
       expect(state.isRailCollapsed, isTrue);
+      state.toggleRailCollapse();
+      expect(state.isRailCollapsed, isFalse);
 
       expect(state.isSchemaRailCollapsed, isFalse);
       state.toggleSchemaRailCollapse();

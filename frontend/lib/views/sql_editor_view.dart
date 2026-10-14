@@ -20,6 +20,7 @@ import 'widgets/safe_mode_confirm_dialog.dart';
 import 'widgets/mutation_history_modal.dart';
 import 'widgets/bulk_delete_modal.dart';
 import 'widgets/cyber_switch.dart';
+import 'widgets/schema_overview_view.dart';
 import '../models/table_schema.dart';
 import '../models/query_result.dart';
 
@@ -444,114 +445,123 @@ class _SqlEditorViewState extends State<SqlEditorView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const WorkspaceTabBar(),
-              // SQL Editor Toolbar (Adaptive Mobile / Desktop)
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.symmetric(
-                  horizontal: isMobile ? 10 : 16,
-                  vertical: isMobile ? 6 : 8,
+              if (state.activeTab.isSchemaOverview)
+                Expanded(
+                  child: SchemaOverviewView(
+                    key: ValueKey('schema_${state.activeTab.schemaName}'),
+                    schemaName: state.activeTab.schemaName ?? '',
+                  ),
+                )
+              else ...[
+                // SQL Editor Toolbar (Adaptive Mobile / Desktop)
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 10 : 16,
+                    vertical: isMobile ? 6 : 8,
+                  ),
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                  child: isMobile
+                      ? _buildMobileToolbar(context, state, theme, detectedParams)
+                      : _buildDesktopToolbar(context, state, theme, detectedParams),
                 ),
-                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                child: isMobile
-                    ? _buildMobileToolbar(context, state, theme, detectedParams)
-                    : _buildDesktopToolbar(context, state, theme, detectedParams),
-              ),
 
-              // SQL Editor Input with Docked IntelliSense Assistant (35% on mobile)
-              Focus(
-                onKeyEvent: _handleKeyEvent,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    DragTarget<Object>(
-                      onWillAcceptWithDetails: (details) => true,
-                      onAcceptWithDetails: (details) {
-                        final data = details.data;
-                        if (data is String) {
-                          state.insertTextIntoEditor(data);
-                        }
-                      },
-                      builder: (context, candidateData, rejectedData) {
-                        final isHovered = candidateData.isNotEmpty;
+                // SQL Editor Input with Docked IntelliSense Assistant (35% on mobile)
+                Focus(
+                  onKeyEvent: _handleKeyEvent,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      DragTarget<Object>(
+                        onWillAcceptWithDetails: (details) => true,
+                        onAcceptWithDetails: (details) {
+                          final data = details.data;
+                          if (data is String) {
+                            state.insertTextIntoEditor(data);
+                          }
+                        },
+                        builder: (context, candidateData, rejectedData) {
+                          final isHovered = candidateData.isNotEmpty;
 
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isHovered
-                                ? const Color(0xFF14B8A6).withValues(alpha: 0.08)
-                                : theme.colorScheme.surface,
-                            border: isHovered
-                                ? Border.all(color: const Color(0xFF14B8A6), width: 2)
-                                : null,
-                          ),
-                          height: editorHeight,
-                          child: Stack(
-                            children: [
-                              TextField(
-                                controller: _queryCtrl,
-                                focusNode: _editorFocusNode,
-                                maxLines: null,
-                                expands: true,
-                                onChanged: _onQueryChanged,
-                                style: TextStyle(
-                                  fontFamily: 'monospace',
-                                  fontSize: isMobile ? 12.5 : 13,
-                                  height: 1.45,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText: isMobile
-                                      ? 'Enter SQL query (Run Ctrl+Enter)...'
-                                      : 'Enter your SQL query (type for smart autocomplete, or drag & drop tables/columns from schema sidebar)...',
-                                  border: InputBorder.none,
-                                ),
-                              ),
-                              if (isHovered)
-                                Positioned(
-                                  right: 8,
-                                  bottom: 8,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF14B8A6),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: const Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.add, size: 14, color: Colors.white),
-                                        SizedBox(width: 4),
-                                        Text(
-                                          'Drop to insert into query',
-                                          style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold),
-                                        ),
-                                      ],
-                                    ),
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isHovered
+                                  ? const Color(0xFF14B8A6).withValues(alpha: 0.08)
+                                  : theme.colorScheme.surface,
+                              border: isHovered
+                                  ? Border.all(color: const Color(0xFF14B8A6), width: 2)
+                                  : null,
+                            ),
+                            height: editorHeight,
+                            child: Stack(
+                              children: [
+                                TextField(
+                                  controller: _queryCtrl,
+                                  focusNode: _editorFocusNode,
+                                  maxLines: null,
+                                  expands: true,
+                                  onChanged: _onQueryChanged,
+                                  style: TextStyle(
+                                    fontFamily: 'monospace',
+                                    fontSize: isMobile ? 12.5 : 13,
+                                    height: 1.45,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: isMobile
+                                        ? 'Enter SQL query (Run Ctrl+Enter)...'
+                                        : 'Enter your SQL query (type for smart autocomplete, or drag & drop tables/columns from schema sidebar)...',
+                                    border: InputBorder.none,
                                   ),
                                 ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                    if (_showAutocomplete && _isAutoSuggestEnabled && _suggestions.isNotEmpty)
-                      SqlAutocompleteDock(
-                        suggestions: _suggestions,
-                        selectedIndex: _selectedSuggestionIndex,
-                        onSelect: _applySuggestion,
-                        onClose: _hideAutocomplete,
+                                if (isHovered)
+                                  Positioned(
+                                    right: 8,
+                                    bottom: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF14B8A6),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.add, size: 14, color: Colors.white),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Drop to insert into query',
+                                            style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
-                  ],
+                      if (_showAutocomplete && _isAutoSuggestEnabled && _suggestions.isNotEmpty)
+                        SqlAutocompleteDock(
+                          suggestions: _suggestions,
+                          selectedIndex: _selectedSuggestionIndex,
+                          onSelect: _applySuggestion,
+                          onClose: _hideAutocomplete,
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              const Divider(height: 1),
+                const Divider(height: 1),
 
-              // Results Section (65% on mobile)
-              Expanded(
-                child: _buildResultsSection(context, state),
-              ),
+                // Results Section (65% on mobile)
+                Expanded(
+                  child: _buildResultsSection(context, state),
+                ),
+              ],
             ],
           ),
         );

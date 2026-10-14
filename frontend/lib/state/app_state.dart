@@ -27,11 +27,11 @@ class AppState extends ChangeNotifier {
         auditStream = auditStream ?? AuditStreamService();
 
   // Cyber Theme & Circadian Engine
-  ThemePreference themePreference = ThemePreference.circadian;
+  ThemePreference themePreference = ThemePreference.dark;
   AccentColorPreset accentColor = AccentColorPreset.emerald;
 
   // Responsive Rail & Window Optimization
-  bool isRailCollapsed = false;
+  bool isRailCollapsed = true;
   bool isSchemaRailCollapsed = false;
 
   bool get isEffectiveDarkMode {
@@ -492,6 +492,27 @@ class AppState extends ChangeNotifier {
       type: WorkspaceTabType.sqlQuery,
       queryText: initialSql ?? 'SELECT * FROM users LIMIT 10;',
       pageSize: activeLimit ?? 100,
+    );
+    tabs.add(tab);
+    activeTabIndex = tabs.length - 1;
+    notifyListeners();
+  }
+
+  String? get activeSchemaName => activeTab.isSchemaOverview ? activeTab.schemaName : null;
+
+  void openSchemaTab(String schemaName) {
+    final existingIdx = tabs.indexWhere((t) => t.isSchemaOverview && t.schemaName == schemaName);
+    if (existingIdx != -1) {
+      activeTabIndex = existingIdx;
+      notifyListeners();
+      return;
+    }
+
+    final tab = WorkspaceTab(
+      id: 'tab_schema_${DateTime.now().microsecondsSinceEpoch}',
+      title: schemaName,
+      type: WorkspaceTabType.schemaOverview,
+      schemaName: schemaName,
     );
     tabs.add(tab);
     activeTabIndex = tabs.length - 1;
