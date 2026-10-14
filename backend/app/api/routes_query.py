@@ -267,6 +267,136 @@ async def mutate_row(req: MutateRowRequest):
         "history_id": history_id
     }
 
+
+class BulkMutateRequest(BaseModel):
+    table_name: str
+    operation: str  # "delete" | "insert"
+    rows_pks: Optional[List[Dict[str, Any]]] = None
+    rows_data: Optional[List[Dict[str, Any]]] = None
+
+
+@router.post("/row/bulk-mutate", response_model=Dict[str, Any])
+async def bulk_mutate_rows(req: BulkMutateRequest):
+    conn = settings_manager.get_active_connection()
+    if not conn:
+        raise HTTPException(status_code=400, detail="No active database connection configured")
+
+    op = req.operation.lower()
+    table_quoted = quote_table_name(req.table_name, conn.engine)
+
+    if op == "delete":
+        if not req.rows_pks or len(req.rows_pks) == 0:
+            raise HTTPException(status_code=400, detail="rows_pks cannot be empty for bulk delete")
+
+        # 1. Fetch pre-mutation snapshots for all target rows for disaster recovery
+        snapshots: List[Dict[str, Any]] = []
+        delete_statements: List[str] = []
+
+        # Group where clauses
+        for pk_dict in req.rows_pks:
+            where_clauses = []
+            for k, v in pk_dict.items():
+                col_quoted = _quote_col_ident(k, conn.engine)
+                if v is None:
+                    where_clauses.append(f"{col_quoted} IS NULL")
+                else:
+                    where_clauses.append(f"{col_quoted} = {_format_sql_literal(v)}")
+            where_str = " AND ".join(where_clauses)
+            delete_statements.append(f"DELETE FROM {table_quoted} WHERE {where_str};")
+
+            # Snapshot query
+            snap_res = await db_manager.execute_query(conn, f"SELECT * FROM {table_quoted} WHERE {where_str} LIMIT 1;", safe_mode=False)
+            if snap_res.rows and len(snap_res.rows) > 0:
+                row_val = snap_res.rows[0]
+                row_map = {col: (row_val[i] if i < len(row_val) else None) for i, col in enumerate(snap_res.columns)}
+                snapshots.append(row_map)
+
+        # 2. Execute atomic batch deletion inside transaction
+        result = await db_manager.execute_transaction(conn, delete_statements)
+
+        status = "ERROR" if result.error else "ALLOWED"
+        audit_broadcaster.record_event(
+            AuditEvent(
+                source="FLUTTER_UI",
+                action="bulk_delete",
+                sql=f"DELETE FROM {req.table_name} ({len(req.rows_pks)} rows)",
+                status=status,
+                execution_time_ms=result.execution_time_ms,
+                row_count=result.row_count,
+                message=result.error or f"Bulk deleted {result.row_count} row(s) from {req.table_name}"
+            )
+        )
+
+        if result.error:
+            return {"success": False, "error": result.error, "affected_rows": 0}
+
+        # 3. Record bulk snapshot into history for recovery
+        history_id = None
+        if snapshots:
+            record = history_manager.record_bulk_mutation(
+                table_name=req.table_name,
+                operation="bulk_delete",
+                bulk_snapshots=snapshots,
+                engine=conn.engine
+            )
+            history_id = record.id
+
+        return {
+            "success": True,
+            "affected_rows": result.row_count,
+            "execution_time_ms": result.execution_time_ms,
+            "history_id": history_id
+        }
+
+    elif op == "insert":
+        if not req.rows_data or len(req.rows_data) == 0:
+            raise HTTPException(status_code=400, detail="rows_data cannot be empty for bulk insert")
+
+        insert_statements: List[str] = []
+        for row in req.rows_data:
+            col_names = [_quote_col_ident(k, conn.engine) for k in row.keys()]
+            val_literals = [_format_sql_literal(v) for v in row.values()]
+            cols_str = ", ".join(col_names)
+            vals_str = ", ".join(val_literals)
+            insert_statements.append(f"INSERT INTO {table_quoted} ({cols_str}) VALUES ({vals_str});")
+
+        result = await db_manager.execute_transaction(conn, insert_statements)
+
+        status = "ERROR" if result.error else "ALLOWED"
+        audit_broadcaster.record_event(
+            AuditEvent(
+                source="FLUTTER_UI",
+                action="bulk_insert",
+                sql=f"INSERT INTO {req.table_name} ({len(req.rows_data)} rows)",
+                status=status,
+                execution_time_ms=result.execution_time_ms,
+                row_count=result.row_count,
+                message=result.error or f"Bulk inserted {result.row_count} row(s) into {req.table_name}"
+            )
+        )
+
+        if result.error:
+            return {"success": False, "error": result.error, "affected_rows": 0}
+
+        history_id = None
+        record = history_manager.record_bulk_mutation(
+            table_name=req.table_name,
+            operation="bulk_insert",
+            bulk_snapshots=req.rows_data,
+            engine=conn.engine
+        )
+        history_id = record.id
+
+        return {
+            "success": True,
+            "affected_rows": result.row_count,
+            "execution_time_ms": result.execution_time_ms,
+            "history_id": history_id
+        }
+    else:
+        raise HTTPException(status_code=400, detail=f"Unsupported bulk operation: {req.operation}")
+
+
 @router.get("/history", response_model=List[Dict[str, Any]])
 async def get_mutation_history():
     records = history_manager.load_history()

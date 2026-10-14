@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/table_schema.dart';
+import 'cyber_text_field.dart';
 
 /// Shows a rich, searchable modal (dialog on desktop/tablet, bottom sheet on mobile)
 /// for browsing and selecting database tables grouped by schema namespace.
@@ -128,7 +129,6 @@ class _TablePickerModalContentState extends State<_TablePickerModalContent> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final totalFilteredTables =
         _filteredGrouped.values.fold<int>(0, (sum, list) => sum + list.length);
     final isSearching = _searchQuery.isNotEmpty;
@@ -198,43 +198,12 @@ class _TablePickerModalContentState extends State<_TablePickerModalContent> {
             const SizedBox(height: 12),
 
             // Search Bar
-            TextField(
+            CyberTextField(
               controller: _searchCtrl,
               autofocus: true,
-              style: const TextStyle(fontSize: 13),
-              decoration: InputDecoration(
-                hintText: 'Search tables or schema folder...',
-                hintStyle:
-                    const TextStyle(fontSize: 12, color: Colors.grey),
-                prefixIcon:
-                    const Icon(Icons.search, size: 18, color: Colors.grey),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 16),
-                        onPressed: () => _searchCtrl.clear(),
-                      )
-                    : null,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.35),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(
-                      color: theme.dividerColor.withValues(alpha: 0.3)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(
-                      color: theme.dividerColor.withValues(alpha: 0.3)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(
-                      color: Color(0xFF14B8A6), width: 1.5),
-                ),
-              ),
+              hintText: 'Search tables or schema folder...',
+              prefixIcon: const Icon(Icons.search, size: 18),
+              showClearButton: true,
             ),
             const SizedBox(height: 12),
 

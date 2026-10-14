@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../state/app_state.dart';
+import 'cyber_switch.dart';
 
 Future<void> showExplainPlanModal(BuildContext context, {required String query}) async {
   await showDialog(
@@ -126,14 +127,16 @@ class _ExplainPlanDialogState extends State<ExplainPlanDialog> {
                   Row(
                     children: [
                       const Text('Analyze (Run):', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                      const SizedBox(width: 4),
-                      Switch(
+                      const SizedBox(width: 6),
+                      CyberSwitch(
                         value: _analyze,
-                        activeThumbColor: accent,
+                        activeColor: accent,
                         onChanged: _loading ? null : (val) {
                           setState(() => _analyze = val);
                           _runExplain();
                         },
+                        tooltip: 'Analyze (Run execution)',
+                        semanticLabel: 'Analyze Toggle Switch',
                       ),
                     ],
                   ),

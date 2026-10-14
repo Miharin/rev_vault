@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/saved_query.dart';
 import '../../state/app_state.dart';
+import 'cyber_text_field.dart';
 
 /// Opens a sci-fi styled BottomSheet modal to browse, search, preview, load, and delete saved queries.
 Future<SavedQuery?> showSavedQueriesModal(BuildContext context) async {
@@ -44,26 +45,21 @@ Future<bool> showSaveQueryDialog(BuildContext context) async {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextFormField(
+              CyberTextField(
                 controller: titleCtrl,
                 autofocus: true,
-                style: const TextStyle(fontSize: 13),
-                decoration: const InputDecoration(
-                  labelText: 'Query Name / Title',
-                  hintText: 'e.g. Active Customer Orders',
-                  border: OutlineInputBorder(),
-                ),
+                labelText: 'Query Name / Title',
+                hintText: 'e.g. Active Customer Orders',
+                prefixIcon: const Icon(Icons.bookmark_outline, size: 16),
+                showClearButton: true,
                 validator: (val) => (val == null || val.trim().isEmpty) ? 'Title is required' : null,
               ),
               const SizedBox(height: 12),
-              TextFormField(
+              CyberTextField(
                 controller: descCtrl,
-                style: const TextStyle(fontSize: 13),
-                decoration: const InputDecoration(
-                  labelText: 'Description / Notes (Optional)',
-                  hintText: 'e.g. Joins users with orders where status is active',
-                  border: OutlineInputBorder(),
-                ),
+                labelText: 'Description / Notes (Optional)',
+                hintText: 'e.g. Joins users with orders where status is active',
+                prefixIcon: const Icon(Icons.notes, size: 16),
                 maxLines: 2,
               ),
               const SizedBox(height: 12),
@@ -199,36 +195,13 @@ class _SavedQueriesModalContentState extends State<_SavedQueriesModalContent> {
             const SizedBox(height: 12),
 
             // Search Filter Bar
-            TextField(
+            CyberTextField(
               controller: _searchCtrl,
               autofocus: true,
+              hintText: 'Search saved queries by name or SQL...',
+              prefixIcon: const Icon(Icons.search, size: 18),
+              showClearButton: true,
               onChanged: (val) => setState(() => _searchQuery = val.trim()),
-              style: const TextStyle(fontSize: 13),
-              decoration: InputDecoration(
-                hintText: 'Search saved queries by name or SQL...',
-                hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
-                prefixIcon: const Icon(Icons.search, size: 18, color: Colors.grey),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 16),
-                        onPressed: () {
-                          _searchCtrl.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                      )
-                    : null,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: theme.dividerColor.withValues(alpha: 0.3)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: theme.dividerColor.withValues(alpha: 0.3)),
-                ),
-              ),
             ),
             const SizedBox(height: 12),
 

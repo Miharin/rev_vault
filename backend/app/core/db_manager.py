@@ -322,4 +322,88 @@ class DatabaseManager:
             return None
         return None
 
+    async def execute_transaction(
+        self,
+        config: ConnectionConfig,
+        statements: List[str]
+    ) -> QueryResult:
+        start_time = time.perf_counter()
+        if not statements:
+            return QueryResult([], [], 0, 0.0)
+
+        if config.engine == "sqlite":
+            if not config.filepath:
+                return QueryResult([], [], 0, 0.0, "SQLite file path not configured")
+            try:
+                total_affected = 0
+                async with aiosqlite.connect(config.filepath) as db:
+                    await db.execute("BEGIN TRANSACTION")
+                    try:
+                        for stmt in statements:
+                            cur = await db.execute(stmt)
+                            if cur.rowcount and cur.rowcount > 0:
+                                total_affected += cur.rowcount
+                        await db.commit()
+                    except Exception as e:
+                        await db.rollback()
+                        raise e
+                elapsed = (time.perf_counter() - start_time) * 1000.0
+                return QueryResult([], [], total_affected, elapsed)
+            except Exception as e:
+                elapsed = (time.perf_counter() - start_time) * 1000.0
+                return QueryResult([], [], 0, elapsed, f"Transaction failed: {str(e)}")
+
+        elif config.engine == "postgres":
+            try:
+                pool = await self.get_pg_pool(config)
+                total_affected = 0
+                async with pool.acquire() as conn:
+                    async with conn.transaction():
+                        for stmt in statements:
+                            statusmsg = await conn.execute(stmt)
+                            if statusmsg:
+                                m = re.search(r'\b(?:INSERT\s+\d+\s+|UPDATE\s+|DELETE\s+|MOVE\s+|FETCH\s+)(\d+)', statusmsg)
+                                if m:
+                                    total_affected += int(m.group(1))
+                elapsed = (time.perf_counter() - start_time) * 1000.0
+                return QueryResult([], [], total_affected, elapsed)
+            except Exception as e:
+                elapsed = (time.perf_counter() - start_time) * 1000.0
+                return QueryResult([], [], 0, elapsed, f"Transaction failed: {str(e)}")
+
+        return QueryResult([], [], 0, 0.0, f"Unsupported engine: {config.engine}")
+
+    async def create_table(self, config: ConnectionConfig, ddl: str) -> QueryResult:
+        return await self.execute_query(config, ddl, safe_mode=False)
+
+    async def truncate_table(
+        self,
+        config: ConnectionConfig,
+        schema: str,
+        table: str,
+        cascade: bool = False
+    ) -> QueryResult:
+        if config.engine == "postgres":
+            target = f'"{schema}"."{table}"' if schema else f'"{table}"'
+            cascade_clause = " CASCADE" if cascade else ""
+            sql = f"TRUNCATE TABLE {target}{cascade_clause};"
+        else:
+            sql = f"DELETE FROM `{table}`;"
+        return await self.execute_query(config, sql, safe_mode=False)
+
+    async def drop_table(
+        self,
+        config: ConnectionConfig,
+        schema: str,
+        table: str,
+        cascade: bool = False
+    ) -> QueryResult:
+        if config.engine == "postgres":
+            target = f'"{schema}"."{table}"' if schema else f'"{table}"'
+            cascade_clause = " CASCADE" if cascade else ""
+            sql = f"DROP TABLE {target}{cascade_clause};"
+        else:
+            sql = f"DROP TABLE `{table}`;"
+        return await self.execute_query(config, sql, safe_mode=False)
+
 db_manager = DatabaseManager()

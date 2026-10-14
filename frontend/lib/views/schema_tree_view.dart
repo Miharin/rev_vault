@@ -5,6 +5,10 @@ import 'package:provider/provider.dart';
 import '../models/table_schema.dart';
 import '../state/app_state.dart';
 import 'widgets/tactical_hud_widgets.dart';
+import 'widgets/create_table_modal.dart';
+import 'widgets/table_lifecycle_modal.dart';
+import 'widgets/data_import_modal.dart';
+import 'widgets/mock_data_generator_modal.dart';
 
 class SchemaTreeView extends StatefulWidget {
   final bool forceExpanded;
@@ -274,7 +278,7 @@ class _SchemaTreeViewState extends State<SchemaTreeView> {
       children: [
         // Header
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
           child: Row(
             children: [
               Icon(Icons.folder_copy_outlined, size: 16, color: primary),
@@ -285,6 +289,35 @@ class _SchemaTreeViewState extends State<SchemaTreeView> {
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
                   overflow: TextOverflow.ellipsis,
                 ),
+              ),
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                icon: const Icon(Icons.add_box_outlined, size: 16),
+                tooltip: 'Create New Table',
+                onPressed: state.activeConnection == null
+                    ? null
+                    : () {
+                        showCreateTableModal(
+                          context: context,
+                          engine: state.activeConnection?.engine ?? 'sqlite',
+                          defaultSchema: _sortedSchemas.isNotEmpty ? _sortedSchemas.first : null,
+                          existingTables: state.tables,
+                          onCreateTable: ({
+                            required tableName,
+                            schemaName,
+                            required columns,
+                            bool ifNotExists = true,
+                          }) {
+                            return state.createTable(
+                              tableName: tableName,
+                              schemaName: schemaName,
+                              columns: columns,
+                              ifNotExists: ifNotExists,
+                            );
+                          },
+                        );
+                      },
               ),
               IconButton(
                 padding: EdgeInsets.zero,
@@ -407,20 +440,29 @@ class _SchemaTreeViewState extends State<SchemaTreeView> {
                         ),
                       ),
                     )
-              : ListView.builder(
-                  itemCount: _sortedSchemas.length,
-                  itemBuilder: (context, sIdx) {
-                    final schemaName = _sortedSchemas[sIdx];
-                    final tables = _filteredGrouped[schemaName] ?? [];
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final availableHeight = constraints.maxHeight;
 
-                    return _SchemaFolderTile(
-                      key: PageStorageKey('schema_$schemaName'),
-                      schemaName: schemaName,
-                      tables: tables,
-                      isInitiallyExpanded: isSearching || _sortedSchemas.length == 1,
-                      transparentTheme: transparentTheme,
-                      primary: primary,
-                      state: state,
+                    return ListView.builder(
+                      itemCount: _sortedSchemas.length,
+                      itemBuilder: (context, sIdx) {
+                        final schemaName = _sortedSchemas[sIdx];
+                        final tables = _filteredGrouped[schemaName] ?? [];
+
+                        return _SchemaFolderTile(
+                          key: PageStorageKey('schema_$schemaName'),
+                          schemaName: schemaName,
+                          tables: tables,
+                          isInitiallyExpanded: isSearching || _sortedSchemas.length == 1,
+                          transparentTheme: transparentTheme,
+                          primary: primary,
+                          state: state,
+                          availableHeight: availableHeight,
+                          isSearching: isSearching,
+                          totalSchemasCount: _sortedSchemas.length,
+                        );
+                      },
                     );
                   },
                 ),
@@ -442,6 +484,9 @@ class _SchemaFolderTile extends StatefulWidget {
   final ThemeData transparentTheme;
   final Color primary;
   final AppState state;
+  final double availableHeight;
+  final bool isSearching;
+  final int totalSchemasCount;
 
   const _SchemaFolderTile({
     super.key,
@@ -451,6 +496,9 @@ class _SchemaFolderTile extends StatefulWidget {
     required this.transparentTheme,
     required this.primary,
     required this.state,
+    this.availableHeight = 600.0,
+    this.isSearching = false,
+    this.totalSchemasCount = 1,
   });
 
   @override
@@ -462,8 +510,10 @@ class _SchemaFolderTileState extends State<_SchemaFolderTile> {
 
   // Estimated height per table row. ExpansionTile minimum header height is 48px.
   static const double _kEstimatedItemHeight = 48.0;
-  // Cap the virtual list height to keep the sidebar scrollable (~9 visible rows)
-  static const double _kMaxListHeight = 432.0;
+  // Approximate height of an ExpansionTile header.
+  static const double _kFolderHeaderHeight = 48.0;
+  // Fallback list height cap when unconstrained.
+  static const double _kDefaultMaxListHeight = 432.0;
 
   // keepScrollOffset: false → bypasses PageStorage for scroll restoration.
   // Without this, the inner ListView's Scrollable reads PageStorage and finds
@@ -496,7 +546,31 @@ class _SchemaFolderTileState extends State<_SchemaFolderTile> {
   Widget build(BuildContext context) {
     final tables = widget.tables;
     final theme = widget.transparentTheme;
-    final listHeight = (tables.length * _kEstimatedItemHeight).clamp(0.0, _kMaxListHeight);
+
+    final double available = widget.availableHeight.isFinite && widget.availableHeight > 0
+        ? widget.availableHeight
+        : _kDefaultMaxListHeight;
+
+    final double maxListHeight;
+    if (widget.isSearching) {
+      if (widget.totalSchemasCount <= 1) {
+        // When searching with a single matching schema, stretch all the way to the bottom
+        maxListHeight = (available - _kFolderHeaderHeight).clamp(120.0, double.infinity);
+      } else {
+        // When searching across multiple schemas, allocate space accounting for other schema headers
+        final otherHeaders = (widget.totalSchemasCount - 1) * _kFolderHeaderHeight;
+        final remaining = available - _kFolderHeaderHeight - otherHeaders;
+        maxListHeight = (remaining > 200.0 ? remaining : available * 0.65).clamp(160.0, double.infinity);
+      }
+    } else if (widget.totalSchemasCount <= 1) {
+      // In single schema databases (e.g. Postgres public or SQLite main), also stretch to bottom
+      maxListHeight = (available - _kFolderHeaderHeight).clamp(120.0, double.infinity);
+    } else {
+      // Multiple schemas without search: allow substantial room while keeping outer scroll smooth
+      maxListHeight = (available * 0.65).clamp(240.0, 700.0);
+    }
+
+    final listHeight = (tables.length * _kEstimatedItemHeight).clamp(0.0, maxListHeight);
 
     return Material(
       color: Colors.transparent,
@@ -693,6 +767,59 @@ class _TableRowTileState extends State<_TableRowTile> {
                 onSelected: (val) {
                   if (val == 'select') {
                     state.insertTextIntoEditor('SELECT * FROM $dragTableText LIMIT 50;');
+                  } else if (val == 'import') {
+                    showDataImportModal(
+                      context: context,
+                      table: table,
+                      onImportRows: ({required rows, bool truncateFirst = false}) {
+                        return state.batchInsertRows(
+                          tableName: table.name,
+                          rowsData: rows,
+                          truncateFirst: truncateFirst,
+                        );
+                      },
+                    );
+                  } else if (val == 'mock') {
+                    showMockDataGeneratorModal(
+                      context: context,
+                      table: table,
+                      onInsertMockRows: (rows) {
+                        return state.batchInsertRows(
+                          tableName: table.name,
+                          rowsData: rows,
+                        );
+                      },
+                    );
+                  } else if (val == 'truncate') {
+                    showTableLifecycleModal(
+                      context: context,
+                      tableName: table.name,
+                      schemaName: table.schema,
+                      action: TableLifecycleAction.truncate,
+                      isSafeMode: state.safeMode,
+                      onConfirm: ({required bool cascade}) {
+                        return state.truncateTable(
+                          tableName: table.name,
+                          schemaName: table.schema,
+                          cascade: cascade,
+                        );
+                      },
+                    );
+                  } else if (val == 'drop') {
+                    showTableLifecycleModal(
+                      context: context,
+                      tableName: table.name,
+                      schemaName: table.schema,
+                      action: TableLifecycleAction.drop,
+                      isSafeMode: state.safeMode,
+                      onConfirm: ({required bool cascade}) {
+                        return state.dropTable(
+                          tableName: table.name,
+                          schemaName: table.schema,
+                          cascade: cascade,
+                        );
+                      },
+                    );
                   } else if (val.startsWith('join:')) {
                     final idx = int.tryParse(val.substring(5)) ?? 0;
                     if (idx < table.foreignKeys.length) {
@@ -721,6 +848,52 @@ class _TableRowTileState extends State<_TableRowTile> {
                         ),
                       ),
                   ],
+                  const PopupMenuDivider(height: 8),
+                  const PopupMenuItem(
+                    value: 'import',
+                    height: 32,
+                    child: Row(
+                      children: [
+                        Icon(Icons.file_upload_outlined, size: 13, color: Color(0xFF14B8A6)),
+                        SizedBox(width: 6),
+                        Text('Import Data (CSV/JSON)...', style: TextStyle(fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'mock',
+                    height: 32,
+                    child: Row(
+                      children: [
+                        Icon(Icons.auto_awesome_outlined, size: 13, color: Color(0xFF38BDF8)),
+                        SizedBox(width: 6),
+                        Text('Generate Mock Data...', style: TextStyle(fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(height: 8),
+                  const PopupMenuItem(
+                    value: 'truncate',
+                    height: 32,
+                    child: Row(
+                      children: [
+                        Icon(Icons.cleaning_services_outlined, size: 13, color: Color(0xFFF59E0B)),
+                        SizedBox(width: 6),
+                        Text('Truncate Table...', style: TextStyle(fontSize: 11, color: Color(0xFFF59E0B))),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'drop',
+                    height: 32,
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_forever_outlined, size: 13, color: Color(0xFFF43F5E)),
+                        SizedBox(width: 6),
+                        Text('Drop Table...', style: TextStyle(fontSize: 11, color: Color(0xFFF43F5E))),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ],

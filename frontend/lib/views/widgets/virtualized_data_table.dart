@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/table_schema.dart';
+import 'cyber_checkbox.dart';
 
 /// Ultra-high performance virtualized data table for large datasets.
 /// Uses ListView.builder with fixed itemExtent for O(1) row recycling,
@@ -19,8 +20,17 @@ class VirtualizedDataTable extends StatefulWidget {
   final Future<bool> Function(int rowIndex, String column, dynamic oldValue, dynamic newValue)? onInlineCellSave;
   final bool isSafeMode;
   final bool showColumnDetails;
+  final bool isSelectionMode;
   final TableMetadata? tableMetadata;
   final List<TableMetadata>? allTables;
+  final Set<int>? selectedRowIndices;
+  final void Function(int rowIndex)? onToggleRowSelection;
+  final void Function(int targetIndex)? onRangeSelectRow;
+  final void Function()? onSelectAll;
+  final void Function()? onClearSelection;
+  final void Function(List<int> selectedIndices)? onBulkDelete;
+  final void Function(List<int> selectedIndices)? onBulkDuplicate;
+  final void Function(List<int> selectedIndices)? onBulkExport;
 
   const VirtualizedDataTable({
     super.key,
@@ -36,8 +46,17 @@ class VirtualizedDataTable extends StatefulWidget {
     this.onInlineCellSave,
     this.isSafeMode = true,
     this.showColumnDetails = false,
+    this.isSelectionMode = false,
     this.tableMetadata,
     this.allTables,
+    this.selectedRowIndices,
+    this.onToggleRowSelection,
+    this.onRangeSelectRow,
+    this.onSelectAll,
+    this.onClearSelection,
+    this.onBulkDelete,
+    this.onBulkDuplicate,
+    this.onBulkExport,
   });
 
   @override
@@ -59,6 +78,7 @@ class _VirtualizedDataTableState extends State<VirtualizedDataTable> {
   FocusNode? _inlineFocusNode;
 
   static const double _rowHeight = 32.0;
+  static const double _selectionColWidth = 38.0;
   static const double _indexColWidth = 52.0;
   static const double _actionsColWidth = 64.0;
   static const double _defaultColWidth = 140.0;
@@ -398,6 +418,9 @@ class _VirtualizedDataTableState extends State<VirtualizedDataTable> {
 
   double _totalColumnsWidth() {
     double total = _indexColWidth;
+    if (widget.isSelectionMode && widget.onToggleRowSelection != null) {
+      total += _selectionColWidth;
+    }
     if (widget.onEditRow != null || widget.onDeleteRow != null || widget.onDuplicateRow != null) {
       total += _effectiveActionsColWidth;
     }
@@ -628,14 +651,17 @@ class _VirtualizedDataTableState extends State<VirtualizedDataTable> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final totalWidth = _totalColumnsWidth();
+    final selectedCount = widget.selectedRowIndices?.length ?? 0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final contentWidth = math.max(totalWidth + 32.0, constraints.maxWidth);
 
-        return Column(
+        return Stack(
           children: [
-            // Sticky Header Row
+            Column(
+              children: [
+                // Sticky Header Row
             Container(
               height: widget.showColumnDetails ? 50.0 : 34.0,
               decoration: BoxDecoration(
@@ -655,6 +681,30 @@ class _VirtualizedDataTableState extends State<VirtualizedDataTable> {
                   width: contentWidth,
                   child: Row(
                     children: [
+                      // Multi-Select Checkbox Header
+                      if (widget.isSelectionMode && widget.onToggleRowSelection != null) ...[
+                        Container(
+                          width: _selectionColWidth,
+                          height: widget.showColumnDetails ? 50.0 : 34.0,
+                          alignment: Alignment.center,
+                          child: CyberCheckbox(
+                            value: (widget.selectedRowIndices != null &&
+                                    widget.rows.isNotEmpty &&
+                                    widget.selectedRowIndices!.length == widget.rows.length)
+                                ? true
+                                : (widget.selectedRowIndices != null && widget.selectedRowIndices!.isNotEmpty
+                                    ? null
+                                    : false),
+                            tristate: true,
+                            size: 16.0,
+                            onChanged: (_) => widget.onSelectAll?.call(),
+                            tooltip: 'Select All / Clear Selection',
+                            semanticLabel: 'Select all rows',
+                          ),
+                        ),
+                        Container(width: 1, height: widget.showColumnDetails ? 32 : 20, color: theme.dividerColor.withValues(alpha: 0.3)),
+                      ],
+
                       // Sticky Row Number Header
                       Container(
                         width: _indexColWidth,
@@ -804,11 +854,14 @@ class _VirtualizedDataTableState extends State<VirtualizedDataTable> {
                       final isEven = rowIndex % 2 == 0;
                       final isHovered = _hoveredRowIndex == rowIndex;
 
-                      final rowBg = isHovered
-                          ? theme.colorScheme.primary.withValues(alpha: 0.12)
-                          : (isEven
-                              ? Colors.transparent
-                              : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.15));
+                      final isSelected = widget.isSelectionMode && widget.selectedRowIndices?.contains(rowIndex) == true;
+                      final rowBg = isSelected
+                          ? theme.colorScheme.primary.withValues(alpha: 0.2)
+                          : (isHovered
+                              ? theme.colorScheme.primary.withValues(alpha: 0.12)
+                              : (isEven
+                                  ? Colors.transparent
+                                  : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.15)));
 
                       return MouseRegion(
                         onEnter: (_) => setState(() => _hoveredRowIndex = rowIndex),
@@ -822,6 +875,9 @@ class _VirtualizedDataTableState extends State<VirtualizedDataTable> {
                           decoration: BoxDecoration(
                             color: rowBg,
                             border: Border(
+                              left: isSelected
+                                  ? BorderSide(color: theme.colorScheme.primary, width: 3)
+                                  : BorderSide.none,
                               bottom: BorderSide(
                                 color: theme.dividerColor.withValues(alpha: 0.2),
                                 width: 0.5,
@@ -830,6 +886,28 @@ class _VirtualizedDataTableState extends State<VirtualizedDataTable> {
                           ),
                           child: Row(
                             children: [
+                              // Multi-Select Checkbox
+                              if (widget.isSelectionMode && widget.onToggleRowSelection != null) ...[
+                                Container(
+                                  width: _selectionColWidth,
+                                  alignment: Alignment.center,
+                                  child: CyberCheckbox(
+                                    value: isSelected,
+                                    size: 16.0,
+                                    onChanged: (_) {
+                                      final isShift = HardwareKeyboard.instance.isShiftPressed;
+                                      if (isShift && widget.onRangeSelectRow != null) {
+                                        widget.onRangeSelectRow!(rowIndex);
+                                      } else {
+                                        widget.onToggleRowSelection?.call(rowIndex);
+                                      }
+                                    },
+                                    semanticLabel: 'Select row $rowIndex',
+                                  ),
+                                ),
+                                Container(width: 1, height: 16, color: theme.dividerColor.withValues(alpha: 0.15)),
+                              ],
+
                               // Row Index Number
                               Container(
                                 width: _indexColWidth,
@@ -1097,8 +1175,111 @@ class _VirtualizedDataTableState extends State<VirtualizedDataTable> {
               ),
             ),
           ],
-        );
-      },
+        ),
+
+        // Floating Tactical HUD Bulk Actions Dock
+        if (widget.isSelectionMode && selectedCount > 0)
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: 12,
+            child: _buildFloatingBulkActionDock(context, theme, selectedCount),
+          ),
+      ],
+    );
+  },
+);
+  }
+
+  Widget _buildFloatingBulkActionDock(BuildContext context, ThemeData theme, int selectedCount) {
+    final primary = theme.colorScheme.primary;
+    final selectedIndices = widget.selectedRowIndices!.toList()..sort();
+
+    return Material(
+      elevation: 12,
+      borderRadius: BorderRadius.circular(10),
+      color: const Color(0xFF0F172A),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: primary.withValues(alpha: 0.5), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: primary.withValues(alpha: 0.25),
+              blurRadius: 16,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: primary.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: primary.withValues(alpha: 0.5)),
+              ),
+              child: Text(
+                '$selectedCount selected',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
+                  color: primary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            TextButton.icon(
+              onPressed: widget.onClearSelection,
+              icon: const Icon(Icons.close, size: 14, color: Colors.grey),
+              label: const Text('Deselect', style: TextStyle(fontSize: 11.5, color: Colors.grey)),
+            ),
+            const SizedBox(width: 8),
+            if (widget.onBulkDuplicate != null) ...[
+              OutlinedButton.icon(
+                onPressed: () => widget.onBulkDuplicate!(selectedIndices),
+                icon: const Icon(Icons.copy_all, size: 14, color: Colors.cyanAccent),
+                label: const Text('Duplicate', style: TextStyle(fontSize: 11.5, color: Colors.cyanAccent)),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: Colors.cyan.withValues(alpha: 0.4)),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            if (widget.onBulkExport != null) ...[
+              OutlinedButton.icon(
+                onPressed: () => widget.onBulkExport!(selectedIndices),
+                icon: const Icon(Icons.file_download_outlined, size: 14),
+                label: const Text('Export', style: TextStyle(fontSize: 11.5)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            const Spacer(),
+            if (widget.onBulkDelete != null)
+              FilledButton.icon(
+                onPressed: () => widget.onBulkDelete!(selectedIndices),
+                icon: const Icon(Icons.delete_sweep, size: 15),
+                label: Text('Delete ($selectedCount)', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.red.shade700,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  visualDensity: VisualDensity.compact,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

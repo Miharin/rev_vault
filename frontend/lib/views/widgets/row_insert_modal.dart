@@ -180,6 +180,25 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
+
+    final pkColor = isDark ? Colors.amber : const Color(0xFFB45309);
+    final pkBgColor = isDark ? Colors.amber.withValues(alpha: 0.18) : const Color(0xFFFEF3C7);
+    final pkBorderColor = isDark ? Colors.amber.withValues(alpha: 0.5) : const Color(0xFFFCD34D);
+
+    final fkColor = isDark ? Colors.cyanAccent : const Color(0xFF0369A1);
+    final fkBgColor = isDark ? Colors.cyan.withValues(alpha: 0.18) : const Color(0xFFE0F2FE);
+    final fkBorderColor = isDark ? Colors.cyan.withValues(alpha: 0.5) : const Color(0xFF7DD3FC);
+
+    final autoColor = isDark ? Colors.tealAccent : const Color(0xFF0F766E);
+    final autoBgColor = isDark ? Colors.teal.withValues(alpha: 0.2) : const Color(0xFFCCFBF1);
+    final autoBorderColor = isDark ? Colors.teal.withValues(alpha: 0.6) : const Color(0xFF5EEAD4);
+
+    final nullActiveColor = isDark ? Colors.orangeAccent : const Color(0xFFC2410C);
+    final nullActiveBgColor = isDark ? Colors.orange.withValues(alpha: 0.2) : const Color(0xFFFFEDD5);
+    final nullActiveBorderColor = isDark ? Colors.orange.withValues(alpha: 0.6) : const Color(0xFFFDBA74);
+
+    final headerIconColor = isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E);
 
     return Dialog(
       backgroundColor: theme.colorScheme.surface,
@@ -235,11 +254,11 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF14B8A6).withValues(alpha: 0.15),
+                          color: headerIconColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFF14B8A6).withValues(alpha: 0.3)),
+                          border: Border.all(color: headerIconColor.withValues(alpha: 0.3)),
                         ),
-                        child: const Icon(Icons.add_box_outlined, color: Color(0xFF14B8A6), size: 18),
+                        child: Icon(Icons.add_box_outlined, color: headerIconColor, size: 18),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -253,9 +272,9 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                               decoration: BoxDecoration(
-                                color: primary.withValues(alpha: 0.1),
+                                color: primary.withValues(alpha: isDark ? 0.1 : 0.12),
                                 borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: primary.withValues(alpha: 0.3), width: 0.8),
+                                border: Border.all(color: primary.withValues(alpha: isDark ? 0.3 : 0.5), width: 0.8),
                               ),
                               child: Text(
                                 widget.tableName,
@@ -263,7 +282,7 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
                                   fontSize: 11,
                                   fontFamily: 'monospace',
                                   fontWeight: FontWeight.w600,
-                                  color: primary,
+                                  color: isDark ? primary : Color.lerp(primary, Colors.black, 0.25)!,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -286,18 +305,27 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
                     margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.15),
+                      color: isDark ? Colors.red.withValues(alpha: 0.15) : const Color(0xFFFEF2F2),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
+                      border: Border.all(
+                        color: isDark ? Colors.redAccent.withValues(alpha: 0.4) : const Color(0xFFFCA5A5),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, size: 16, color: Colors.redAccent),
+                        Icon(
+                          Icons.error_outline,
+                          size: 16,
+                          color: isDark ? Colors.redAccent : const Color(0xFFDC2626),
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _errorMessage!,
-                            style: const TextStyle(fontSize: 12, color: Colors.redAccent),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? Colors.redAccent : const Color(0xFFDC2626),
+                            ),
                           ),
                         ),
                       ],
@@ -324,12 +352,14 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
+                          color: isDark
+                              ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.2)
+                              : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
                             color: isAuto
-                                ? Colors.teal.withValues(alpha: 0.4)
-                                : theme.dividerColor.withValues(alpha: 0.2),
+                                ? (isDark ? Colors.teal.withValues(alpha: 0.4) : autoBorderColor.withValues(alpha: 0.8))
+                                : theme.dividerColor.withValues(alpha: isDark ? 0.2 : 0.6),
                             width: 1,
                           ),
                         ),
@@ -351,22 +381,22 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
                                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                             margin: const EdgeInsets.only(right: 5),
                                             decoration: BoxDecoration(
-                                              color: Colors.amber.withValues(alpha: 0.18),
+                                              color: pkBgColor,
                                               borderRadius: BorderRadius.circular(4),
-                                              border: Border.all(color: Colors.amber.withValues(alpha: 0.5), width: 0.8),
+                                              border: Border.all(color: pkBorderColor, width: 0.8),
                                             ),
-                                            child: const Row(
+                                            child: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                Icon(Icons.vpn_key_rounded, size: 9, color: Colors.amber),
-                                                SizedBox(width: 2),
+                                                Icon(Icons.vpn_key_rounded, size: 9, color: pkColor),
+                                                const SizedBox(width: 2),
                                                 Text(
                                                   'PK',
                                                   style: TextStyle(
                                                     fontSize: 9,
                                                     fontWeight: FontWeight.bold,
                                                     fontFamily: 'monospace',
-                                                    color: Colors.amber,
+                                                    color: pkColor,
                                                   ),
                                                 ),
                                               ],
@@ -381,22 +411,22 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
                                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                             margin: const EdgeInsets.only(right: 5),
                                             decoration: BoxDecoration(
-                                              color: Colors.cyan.withValues(alpha: 0.18),
+                                              color: fkBgColor,
                                               borderRadius: BorderRadius.circular(4),
-                                              border: Border.all(color: Colors.cyan.withValues(alpha: 0.5), width: 0.8),
+                                              border: Border.all(color: fkBorderColor, width: 0.8),
                                             ),
-                                            child: const Row(
+                                            child: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                Icon(Icons.link, size: 9, color: Colors.cyanAccent),
-                                                SizedBox(width: 2),
+                                                Icon(Icons.link, size: 9, color: fkColor),
+                                                const SizedBox(width: 2),
                                                 Text(
                                                   'FK',
                                                   style: TextStyle(
                                                     fontSize: 9,
                                                     fontWeight: FontWeight.bold,
                                                     fontFamily: 'monospace',
-                                                    color: Colors.cyanAccent,
+                                                    color: fkColor,
                                                   ),
                                                 ),
                                               ],
@@ -427,15 +457,22 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                     decoration: BoxDecoration(
-                                      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                                      color: isDark
+                                          ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+                                          : theme.colorScheme.surfaceContainerHighest,
                                       borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: theme.dividerColor.withValues(alpha: isDark ? 0.2 : 0.6),
+                                        width: 0.6,
+                                      ),
                                     ),
                                     child: Text(
                                       _shortenType(colMeta.dataType),
                                       style: TextStyle(
                                         fontSize: 9.5,
                                         fontFamily: 'monospace',
-                                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                        fontWeight: isDark ? FontWeight.normal : FontWeight.w600,
+                                        color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.6 : 0.75),
                                       ),
                                     ),
                                   ),
@@ -460,13 +497,13 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
                                         color: isAuto
-                                            ? Colors.teal.withValues(alpha: 0.2)
-                                            : Colors.grey.withValues(alpha: 0.1),
+                                            ? autoBgColor
+                                            : (isDark ? Colors.grey.withValues(alpha: 0.1) : theme.colorScheme.surfaceContainerHighest),
                                         borderRadius: BorderRadius.circular(4),
                                         border: Border.all(
                                           color: isAuto
-                                              ? Colors.teal.withValues(alpha: 0.6)
-                                              : Colors.grey.withValues(alpha: 0.3),
+                                              ? autoBorderColor
+                                              : (isDark ? Colors.grey.withValues(alpha: 0.3) : theme.dividerColor),
                                           width: 0.8,
                                         ),
                                       ),
@@ -476,7 +513,9 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
                                           Icon(
                                             isAuto ? Icons.auto_awesome : Icons.edit,
                                             size: 10,
-                                            color: isAuto ? Colors.tealAccent : Colors.grey,
+                                            color: isAuto
+                                                ? autoColor
+                                                : (isDark ? Colors.grey : theme.colorScheme.onSurface.withValues(alpha: 0.6)),
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
@@ -484,7 +523,9 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
                                             style: TextStyle(
                                               fontSize: 9.5,
                                               fontWeight: FontWeight.bold,
-                                              color: isAuto ? Colors.tealAccent : Colors.grey,
+                                              color: isAuto
+                                                  ? autoColor
+                                                  : (isDark ? Colors.grey : theme.colorScheme.onSurface.withValues(alpha: 0.7)),
                                             ),
                                           ),
                                         ],
@@ -507,13 +548,13 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
                                         color: isNull
-                                            ? Colors.orange.withValues(alpha: 0.2)
+                                            ? nullActiveBgColor
                                             : Colors.transparent,
                                         borderRadius: BorderRadius.circular(4),
                                         border: Border.all(
                                           color: isNull
-                                              ? Colors.orange.withValues(alpha: 0.6)
-                                              : theme.dividerColor.withValues(alpha: 0.3),
+                                              ? nullActiveBorderColor
+                                              : theme.dividerColor.withValues(alpha: isDark ? 0.3 : 0.6),
                                           width: 0.8,
                                         ),
                                       ),
@@ -522,8 +563,10 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
                                         style: TextStyle(
                                           fontSize: 9.5,
                                           fontFamily: 'monospace',
-                                          fontWeight: isNull ? FontWeight.bold : FontWeight.normal,
-                                          color: isNull ? Colors.orangeAccent : Colors.grey,
+                                          fontWeight: isNull ? FontWeight.bold : FontWeight.w600,
+                                          color: isNull
+                                              ? nullActiveColor
+                                              : (isDark ? Colors.grey : theme.colorScheme.onSurface.withValues(alpha: 0.6)),
                                         ),
                                       ),
                                     ),
@@ -540,17 +583,22 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
                                 padding: const EdgeInsets.symmetric(horizontal: 10),
                                 alignment: Alignment.centerLeft,
                                 decoration: BoxDecoration(
-                                  color: Colors.teal.withValues(alpha: 0.06),
+                                  color: isDark ? Colors.teal.withValues(alpha: 0.06) : const Color(0xFFF0FDFA),
                                   borderRadius: BorderRadius.circular(5),
-                                  border: Border.all(color: Colors.teal.withValues(alpha: 0.2)),
+                                  border: Border.all(color: autoBorderColor.withValues(alpha: isDark ? 0.4 : 0.7)),
                                 ),
-                                child: const Row(
+                                child: Row(
                                   children: [
-                                    Icon(Icons.bolt, size: 12, color: Colors.tealAccent),
-                                    SizedBox(width: 6),
+                                    Icon(Icons.bolt, size: 12, color: autoColor),
+                                    const SizedBox(width: 6),
                                     Text(
                                       'Auto-generated by database (omitted from INSERT)',
-                                      style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.tealAccent),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontStyle: FontStyle.italic,
+                                        fontWeight: isDark ? FontWeight.normal : FontWeight.w600,
+                                        color: autoColor,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -563,7 +611,7 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
                                 decoration: BoxDecoration(
                                   color: theme.colorScheme.surface,
                                   borderRadius: BorderRadius.circular(5),
-                                  border: Border.all(color: theme.dividerColor.withValues(alpha: 0.2)),
+                                  border: Border.all(color: theme.dividerColor.withValues(alpha: isDark ? 0.2 : 0.5)),
                                 ),
                                 child: Text(
                                   '<NULL>',
@@ -571,7 +619,7 @@ class _RowInsertModalDialogState extends State<_RowInsertModalDialog> {
                                     fontSize: 11,
                                     fontStyle: FontStyle.italic,
                                     fontFamily: 'monospace',
-                                    color: Colors.grey.withValues(alpha: 0.6),
+                                    color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.4 : 0.55),
                                   ),
                                 ),
                               )

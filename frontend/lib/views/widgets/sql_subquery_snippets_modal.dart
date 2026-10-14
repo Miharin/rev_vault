@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/sql_autocomplete_service.dart';
+import 'cyber_text_field.dart';
 
 /// Opens an interactive modal allowing developers to browse, search, and insert
 /// advanced Subquery and CTE templates into their Raw SQL query.
@@ -64,31 +65,12 @@ class _SqlSubquerySnippetsDialogState extends State<_SqlSubquerySnippetsDialog> 
         child: Column(
           children: [
             // Search Bar & Categories
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchCtrl,
-                    onChanged: (val) => setState(() => _searchFilter = val.trim().toLowerCase()),
-                    style: const TextStyle(fontSize: 12),
-                    decoration: InputDecoration(
-                      hintText: 'Search subqueries, CTEs, window functions...',
-                      prefixIcon: const Icon(Icons.search, size: 16),
-                      suffixIcon: _searchFilter.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, size: 14),
-                              onPressed: () {
-                                _searchCtrl.clear();
-                                setState(() => _searchFilter = '');
-                              },
-                            )
-                          : null,
-                      isDense: true,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                  ),
-                ),
-              ],
+            CyberTextField(
+              controller: _searchCtrl,
+              hintText: 'Search subqueries, CTEs, window functions...',
+              prefixIcon: const Icon(Icons.search, size: 16),
+              showClearButton: true,
+              onChanged: (val) => setState(() => _searchFilter = val.trim().toLowerCase()),
             ),
             const SizedBox(height: 10),
 

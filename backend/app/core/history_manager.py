@@ -13,10 +13,11 @@ class MutationRecord(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     table_name: str
-    operation: str  # "update" | "delete"
+    operation: str  # "update" | "delete" | "insert" | "bulk_delete" | "bulk_insert"
     primary_keys: Dict[str, Any]
     old_values: Dict[str, Any]
     new_values: Optional[Dict[str, Any]] = None
+    bulk_snapshots: Optional[List[Dict[str, Any]]] = None
     inverse_sql: str
     is_recovered: bool = False
 
@@ -191,6 +192,56 @@ class HistoryManager:
         self._save_history(pruned)
         return record
 
+    def record_bulk_mutation(
+        self,
+        table_name: str,
+        operation: str,
+        bulk_snapshots: List[Dict[str, Any]],
+        engine: str
+    ) -> MutationRecord:
+        table_quoted = quote_table_name(table_name, engine)
+        inverse_statements = []
+
+        if operation.lower() in ("bulk_delete", "delete"):
+            for row in bulk_snapshots:
+                cols = list(row.keys())
+                quoted_cols = [quote_col_ident(c, engine) for c in cols]
+                vals = [format_sql_literal(row[c]) for c in cols]
+                cols_str = ", ".join(quoted_cols)
+                vals_str = ", ".join(vals)
+                inverse_statements.append(f"INSERT INTO {table_quoted} ({cols_str}) VALUES ({vals_str});")
+        elif operation.lower() in ("bulk_insert", "insert"):
+            for row in bulk_snapshots:
+                where_clauses = []
+                for k, v in row.items():
+                    col_q = quote_col_ident(k, engine)
+                    if v is None:
+                        where_clauses.append(f"{col_q} IS NULL")
+                    else:
+                        where_clauses.append(f"{col_q} = {format_sql_literal(v)}")
+                if where_clauses:
+                    where_str = " AND ".join(where_clauses)
+                    inverse_statements.append(f"DELETE FROM {table_quoted} WHERE {where_str};")
+
+        inverse_sql = "\n".join(inverse_statements)
+        first_pk = bulk_snapshots[0] if bulk_snapshots else {}
+
+        record = MutationRecord(
+            table_name=table_name,
+            operation=operation.lower(),
+            primary_keys={"_count": len(bulk_snapshots)},
+            old_values=first_pk,
+            bulk_snapshots=bulk_snapshots,
+            inverse_sql=inverse_sql,
+            is_recovered=False
+        )
+
+        current = self.load_history()
+        current.append(record)
+        pruned = self.prune_records(current)
+        self._save_history(pruned)
+        return record
+
     async def recover(self, history_id: str, conn: ConnectionConfig) -> Dict[str, Any]:
         records = self.load_history()
         target = next((r for r in records if r.id == history_id), None)
@@ -200,14 +251,18 @@ class HistoryManager:
         if not target.inverse_sql.strip():
             return {"success": False, "error": "No inverse SQL statement available for this mutation"}
 
-        result = await db_manager.execute_query(conn, target.inverse_sql, safe_mode=False)
+        statements = [s.strip() for s in target.inverse_sql.split(";") if s.strip()]
+        if len(statements) > 1:
+            result = await db_manager.execute_transaction(conn, [s + ";" for s in statements])
+        else:
+            result = await db_manager.execute_query(conn, target.inverse_sql, safe_mode=False)
 
         status = "ERROR" if result.error else "ALLOWED"
         audit_broadcaster.record_event(
             AuditEvent(
                 source="FLUTTER_UI",
                 action=f"row_recover_{target.operation}",
-                sql=target.inverse_sql,
+                sql=target.inverse_sql[:500] + ("..." if len(target.inverse_sql) > 500 else ""),
                 status=status,
                 execution_time_ms=result.execution_time_ms,
                 row_count=result.row_count,

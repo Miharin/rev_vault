@@ -73,6 +73,59 @@ void main() {
     expect(find.text('antrian_apotek'), findsNothing);
   });
 
+  testWidgets('SchemaTreeView stretches table list vertically beyond 432px when searching', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    final state = AppState();
+    state.tables = List.generate(
+      25,
+      (i) => TableMetadata(
+        name: 'public.apotek_$i',
+        schema: 'public',
+        rawName: 'apotek_$i',
+        tableType: 'TABLE',
+        columns: [
+          ColumnMetadata(name: 'id', dataType: 'int', isNullable: false, isPrimaryKey: true),
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ChangeNotifierProvider<AppState>.value(
+            value: state,
+            child: const SchemaTreeView(),
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField), 'apotek_');
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pumpAndSettle();
+
+    // Verify folder is expanded and contains tables
+    expect(find.text('public'), findsOneWidget);
+    expect(find.text('apotek_0'), findsOneWidget);
+
+    // Find the inner SizedBox that contains the table ListView
+    final sizedBoxes = tester.widgetList<SizedBox>(find.descendant(
+      of: find.byType(ExpansionTile),
+      matching: find.byType(SizedBox),
+    ));
+
+    // The inner container height should stretch well beyond the old 432.0 clamp
+    final matchingBox = sizedBoxes.firstWhere(
+      (sb) => sb.height != null && sb.height! > 432.0,
+      orElse: () => const SizedBox(),
+    );
+    expect(matchingBox.height, isNotNull);
+    expect(matchingBox.height!, greaterThan(432.0));
+  });
+
   testWidgets('SqlEditorView displays pagination bar and responds to page navigation', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1.0;

@@ -209,6 +209,130 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> bulkMutateRows({
+    required String tableName,
+    required String operation,
+    List<Map<String, dynamic>>? rowsPks,
+    List<Map<String, dynamic>>? rowsData,
+  }) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/query/row/bulk-mutate'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'table_name': tableName,
+          'operation': operation,
+          'rows_pks': rowsPks,
+          'rows_data': rowsData,
+        }),
+      );
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+      return {
+        'success': false,
+        'error': 'HTTP error ${res.statusCode}: ${res.body}',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Backend communication error: $e',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> createTable({
+    required String tableName,
+    String? schemaName,
+    required List<Map<String, dynamic>> columns,
+    bool ifNotExists = true,
+  }) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/schema/table/create'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'table_name': tableName,
+          'schema_name': schemaName,
+          'columns': columns,
+          'if_not_exists': ifNotExists,
+        }),
+      );
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+      return {
+        'success': false,
+        'error': 'Failed to create table (${res.statusCode}): ${res.body}',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Backend communication error: $e',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> dropTable({
+    required String tableName,
+    String? schemaName,
+    bool cascade = false,
+  }) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/schema/table/drop'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'table_name': tableName,
+          'schema_name': schemaName,
+          'cascade': cascade,
+        }),
+      );
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+      return {
+        'success': false,
+        'error': 'Failed to drop table (${res.statusCode}): ${res.body}',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Backend communication error: $e',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> truncateTable({
+    required String tableName,
+    String? schemaName,
+    bool cascade = false,
+  }) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/schema/table/truncate'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'table_name': tableName,
+          'schema_name': schemaName,
+          'cascade': cascade,
+        }),
+      );
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+      return {
+        'success': false,
+        'error': 'Failed to truncate table (${res.statusCode}): ${res.body}',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'error': 'Backend communication error: $e',
+      };
+    }
+  }
+
   Future<QueryResult> previewTable(String tableName, {int page = 1, int pageSize = 25}) async {
     try {
       final res = await http.get(Uri.parse('$baseUrl/api/query/preview/$tableName?page=$page&page_size=$pageSize'));

@@ -221,6 +221,19 @@ class _RowEditModalDialogState extends State<_RowEditModalDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
+
+    final pkColor = isDark ? primary : Color.lerp(primary, Colors.black, 0.25)!;
+    final pkBgColor = isDark ? primary.withValues(alpha: 0.18) : primary.withValues(alpha: 0.12);
+    final pkBorderColor = isDark ? primary.withValues(alpha: 0.5) : primary.withValues(alpha: 0.4);
+
+    final fkColor = isDark ? Colors.cyanAccent : const Color(0xFF0369A1);
+    final fkBgColor = isDark ? Colors.cyan.withValues(alpha: 0.18) : const Color(0xFFE0F2FE);
+    final fkBorderColor = isDark ? Colors.cyan.withValues(alpha: 0.5) : const Color(0xFF7DD3FC);
+
+    final nullActiveColor = isDark ? Colors.amber : const Color(0xFFB45309);
+    final nullActiveBgColor = isDark ? Colors.amber.withValues(alpha: 0.2) : const Color(0xFFFEF3C7);
+    final nullActiveBorderColor = isDark ? Colors.amber.withValues(alpha: 0.6) : const Color(0xFFFCD34D);
 
     return Dialog(
       backgroundColor: theme.colorScheme.surface,
@@ -294,9 +307,9 @@ class _RowEditModalDialogState extends State<_RowEditModalDialog> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                               decoration: BoxDecoration(
-                                color: primary.withValues(alpha: 0.1),
+                                color: primary.withValues(alpha: isDark ? 0.1 : 0.12),
                                 borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: primary.withValues(alpha: 0.3), width: 0.8),
+                                border: Border.all(color: primary.withValues(alpha: isDark ? 0.3 : 0.5), width: 0.8),
                               ),
                               child: Text(
                                 widget.tableName,
@@ -304,7 +317,7 @@ class _RowEditModalDialogState extends State<_RowEditModalDialog> {
                                   fontSize: 11,
                                   fontFamily: 'monospace',
                                   fontWeight: FontWeight.w600,
-                                  color: primary,
+                                  color: isDark ? primary : Color.lerp(primary, Colors.black, 0.25)!,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -390,21 +403,21 @@ class _RowEditModalDialogState extends State<_RowEditModalDialog> {
                                   width: 175,
                                   child: Row(
                                     children: [
-                                      if (isPk) ...[
+                                       if (isPk) ...[
                                         Tooltip(
                                           message: 'Primary Key',
                                           child: Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                             margin: const EdgeInsets.only(right: 5),
                                             decoration: BoxDecoration(
-                                              color: primary.withValues(alpha: 0.18),
+                                              color: pkBgColor,
                                               borderRadius: BorderRadius.circular(4),
-                                              border: Border.all(color: primary.withValues(alpha: 0.5), width: 0.8),
+                                              border: Border.all(color: pkBorderColor, width: 0.8),
                                             ),
                                             child: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                Icon(Icons.vpn_key_rounded, size: 9, color: primary),
+                                                Icon(Icons.vpn_key_rounded, size: 9, color: pkColor),
                                                 const SizedBox(width: 2),
                                                 Text(
                                                   'PK',
@@ -412,7 +425,7 @@ class _RowEditModalDialogState extends State<_RowEditModalDialog> {
                                                     fontSize: 9,
                                                     fontWeight: FontWeight.bold,
                                                     fontFamily: 'monospace',
-                                                    color: primary,
+                                                    color: pkColor,
                                                   ),
                                                 ),
                                               ],
@@ -427,22 +440,22 @@ class _RowEditModalDialogState extends State<_RowEditModalDialog> {
                                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                             margin: const EdgeInsets.only(right: 5),
                                             decoration: BoxDecoration(
-                                              color: Colors.cyan.withValues(alpha: 0.18),
+                                              color: fkBgColor,
                                               borderRadius: BorderRadius.circular(4),
-                                              border: Border.all(color: Colors.cyan.withValues(alpha: 0.5), width: 0.8),
+                                              border: Border.all(color: fkBorderColor, width: 0.8),
                                             ),
-                                            child: const Row(
+                                            child: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                Icon(Icons.link, size: 9, color: Colors.cyanAccent),
-                                                SizedBox(width: 2),
+                                                Icon(Icons.link, size: 9, color: fkColor),
+                                                const SizedBox(width: 2),
                                                 Text(
                                                   'FK',
                                                   style: TextStyle(
                                                     fontSize: 9,
                                                     fontWeight: FontWeight.bold,
                                                     fontFamily: 'monospace',
-                                                    color: Colors.cyanAccent,
+                                                    color: fkColor,
                                                   ),
                                                 ),
                                               ],
@@ -471,7 +484,7 @@ class _RowEditModalDialogState extends State<_RowEditModalDialog> {
                                                 style: TextStyle(
                                                   fontSize: 9,
                                                   fontFamily: 'monospace',
-                                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                                                  color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.45 : 0.7),
                                                 ),
                                                 overflow: TextOverflow.ellipsis,
                                               ),
@@ -562,13 +575,13 @@ class _RowEditModalDialogState extends State<_RowEditModalDialog> {
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                                     decoration: BoxDecoration(
                                       color: isNull
-                                          ? Colors.amber.withValues(alpha: 0.2)
-                                          : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
+                                          ? nullActiveBgColor
+                                          : theme.colorScheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.2 : 0.4),
                                       borderRadius: BorderRadius.circular(4),
                                       border: Border.all(
                                         color: isNull
-                                            ? Colors.amber.withValues(alpha: 0.6)
-                                            : theme.dividerColor.withValues(alpha: 0.25),
+                                            ? nullActiveBorderColor
+                                            : theme.dividerColor.withValues(alpha: isDark ? 0.25 : 0.6),
                                       ),
                                     ),
                                     child: Text(
@@ -577,7 +590,7 @@ class _RowEditModalDialogState extends State<_RowEditModalDialog> {
                                         fontSize: 9.5,
                                         fontFamily: 'monospace',
                                         fontWeight: FontWeight.bold,
-                                        color: isNull ? Colors.amber : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                                        color: isNull ? nullActiveColor : theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.5 : 0.7),
                                       ),
                                     ),
                                   ),
@@ -594,7 +607,7 @@ class _RowEditModalDialogState extends State<_RowEditModalDialog> {
                                   children: [
                                     Text(
                                       'Was: ',
-                                      style: TextStyle(fontSize: 9, color: theme.colorScheme.onSurface.withValues(alpha: 0.45)),
+                                      style: TextStyle(fontSize: 9, color: theme.colorScheme.onSurface.withValues(alpha: isDark ? 0.45 : 0.7)),
                                     ),
                                     Text(
                                       origStr ?? 'NULL',

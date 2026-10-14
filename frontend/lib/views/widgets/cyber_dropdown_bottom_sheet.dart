@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'cyber_text_field.dart';
 
 class CyberDropdownItem<T> {
   final T value;
@@ -157,36 +158,13 @@ class _CyberDropdownBottomSheetContentState<T>
 
             // Search Bar (shown when list > 5 items)
             if (widget.items.length > 5) ...[
-              TextField(
+              CyberTextField(
                 controller: _searchCtrl,
                 autofocus: widget.items.length > 10,
+                hintText: widget.searchHint ?? 'Filter options...',
+                prefixIcon: const Icon(Icons.search, size: 16),
+                showClearButton: true,
                 onChanged: (val) => setState(() => _query = val.trim()),
-                style: const TextStyle(fontSize: 12.5),
-                decoration: InputDecoration(
-                  hintText: widget.searchHint ?? 'Filter options...',
-                  hintStyle: const TextStyle(fontSize: 11.5, color: Colors.grey),
-                  prefixIcon: const Icon(Icons.search, size: 16, color: Colors.grey),
-                  suffixIcon: _query.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 14),
-                          onPressed: () {
-                            _searchCtrl.clear();
-                            setState(() => _query = '');
-                          },
-                        )
-                      : null,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: theme.dividerColor.withValues(alpha: 0.3)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: theme.dividerColor.withValues(alpha: 0.3)),
-                  ),
-                ),
               ),
               const SizedBox(height: 10),
             ],

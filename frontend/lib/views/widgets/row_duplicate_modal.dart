@@ -448,14 +448,24 @@ class _RowDuplicateModalDialogState extends State<_RowDuplicateModalDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
     final excludedList = _excludedCols.toList();
     final includedCols = widget.columns.where((c) => !_excludedCols.contains(c)).toList();
+
+    final cyanColor = isDark ? Colors.cyanAccent : const Color(0xFF0369A1);
+    final cyanBgColor = isDark ? Colors.cyan.withValues(alpha: 0.15) : const Color(0xFFE0F2FE);
+    final cyanBorderColor = isDark ? Colors.cyanAccent.withValues(alpha: 0.3) : const Color(0xFF7DD3FC);
+
+    final bannerColor = isDark ? Colors.tealAccent : const Color(0xFF0F766E);
+    final bannerBgColor = isDark ? Colors.teal.withValues(alpha: 0.1) : const Color(0xFFF0FDFA);
+    final bannerBorderColor = isDark ? Colors.teal.withValues(alpha: 0.35) : const Color(0xFF5EEAD4);
 
     return Dialog(
       backgroundColor: theme.colorScheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: Colors.cyanAccent.withValues(alpha: 0.3), width: 1.2),
+        side: BorderSide(color: (isDark ? Colors.cyanAccent : primary).withValues(alpha: 0.3), width: 1.2),
       ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: ClipRRect(
@@ -465,7 +475,7 @@ class _RowDuplicateModalDialogState extends State<_RowDuplicateModalDialog> {
             color: theme.colorScheme.surface,
             boxShadow: [
               BoxShadow(
-                color: Colors.cyanAccent.withValues(alpha: 0.1),
+                color: (isDark ? Colors.cyanAccent : primary).withValues(alpha: 0.1),
                 blurRadius: 28,
                 spreadRadius: 2,
               ),
@@ -484,7 +494,7 @@ class _RowDuplicateModalDialogState extends State<_RowDuplicateModalDialog> {
                     gradient: LinearGradient(
                       colors: [
                         Colors.cyan.withValues(alpha: 0.1),
-                        Colors.cyanAccent,
+                        isDark ? Colors.cyanAccent : primary,
                         Colors.cyan.withValues(alpha: 0.1),
                       ],
                     ),
@@ -505,11 +515,11 @@ class _RowDuplicateModalDialogState extends State<_RowDuplicateModalDialog> {
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Colors.cyanAccent.withValues(alpha: 0.15),
+                          color: cyanBgColor,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.3)),
+                          border: Border.all(color: cyanBorderColor),
                         ),
-                        child: const Icon(Icons.copy_all_outlined, color: Colors.cyanAccent, size: 18),
+                        child: Icon(Icons.copy_all_outlined, color: cyanColor, size: 18),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -524,17 +534,17 @@ class _RowDuplicateModalDialogState extends State<_RowDuplicateModalDialog> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                 decoration: BoxDecoration(
-                                  color: Colors.cyanAccent.withValues(alpha: 0.1),
+                                  color: cyanBgColor,
                                   borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.3), width: 0.8),
+                                  border: Border.all(color: cyanBorderColor, width: 0.8),
                                 ),
                                 child: Text(
                                   widget.tableName,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 11,
                                     fontFamily: 'monospace',
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.cyanAccent,
+                                    color: cyanColor,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -587,22 +597,22 @@ class _RowDuplicateModalDialogState extends State<_RowDuplicateModalDialog> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.teal.withValues(alpha: 0.1),
+                            color: bannerBgColor,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.teal.withValues(alpha: 0.35)),
+                            border: Border.all(color: bannerBorderColor),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.shield_outlined, size: 18, color: Colors.tealAccent),
+                              Icon(Icons.shield_outlined, size: 18, color: bannerColor),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
+                                    Text(
                                       'Collision Prevention & Expression Generator',
-                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.tealAccent),
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: bannerColor),
                                     ),
                                     const SizedBox(height: 3),
                                     Text(
@@ -659,15 +669,15 @@ class _RowDuplicateModalDialogState extends State<_RowDuplicateModalDialog> {
                                 decoration: BoxDecoration(
                                   color: theme.colorScheme.surface,
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.5)),
+                                  border: Border.all(color: cyanBorderColor),
                                 ),
                                 child: Text(
                                   '$_count',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.bold,
                                     fontFamily: 'monospace',
-                                    color: Colors.cyanAccent,
+                                    color: cyanColor,
                                   ),
                                 ),
                               ),
@@ -691,11 +701,11 @@ class _RowDuplicateModalDialogState extends State<_RowDuplicateModalDialog> {
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                       decoration: BoxDecoration(
                                         color: isSel
-                                            ? Colors.cyanAccent.withValues(alpha: 0.2)
+                                            ? cyanBgColor
                                             : theme.colorScheme.surface,
                                         borderRadius: BorderRadius.circular(4),
                                         border: Border.all(
-                                          color: isSel ? Colors.cyanAccent : theme.dividerColor.withValues(alpha: 0.3),
+                                          color: isSel ? cyanBorderColor : theme.dividerColor.withValues(alpha: 0.3),
                                           width: 0.8,
                                         ),
                                       ),
@@ -704,7 +714,7 @@ class _RowDuplicateModalDialogState extends State<_RowDuplicateModalDialog> {
                                         style: TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold,
-                                          color: isSel ? Colors.cyanAccent : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                          color: isSel ? cyanColor : theme.colorScheme.onSurface.withValues(alpha: 0.6),
                                         ),
                                       ),
                                     ),
@@ -1015,7 +1025,7 @@ class _RowDuplicateModalDialogState extends State<_RowDuplicateModalDialog> {
                                                   Expanded(
                                                     child: Text(
                                                       'Live Preview: ${_generatePreviewText(col)}',
-                                                      style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Colors.cyanAccent),
+                                                      style: TextStyle(fontSize: 10, fontFamily: 'monospace', color: cyanColor),
                                                       overflow: TextOverflow.ellipsis,
                                                     ),
                                                   ),
@@ -1059,10 +1069,13 @@ class _RowDuplicateModalDialogState extends State<_RowDuplicateModalDialog> {
                       ElevatedButton.icon(
                         onPressed: _isDuplicating ? null : _submit,
                         icon: _isDuplicating
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 12,
                                 height: 12,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black87),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: isDark ? Colors.black87 : Colors.white,
+                                ),
                               )
                             : const Icon(Icons.copy, size: 15),
                         label: Text(
@@ -1072,8 +1085,8 @@ class _RowDuplicateModalDialogState extends State<_RowDuplicateModalDialog> {
                           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.cyanAccent,
-                          foregroundColor: Colors.black87,
+                          backgroundColor: isDark ? Colors.cyanAccent : const Color(0xFF0284C7),
+                          foregroundColor: isDark ? Colors.black87 : Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           visualDensity: VisualDensity.compact,
                         ),

@@ -18,7 +18,10 @@ import 'widgets/row_insert_modal.dart';
 import 'widgets/row_duplicate_modal.dart';
 import 'widgets/safe_mode_confirm_dialog.dart';
 import 'widgets/mutation_history_modal.dart';
+import 'widgets/bulk_delete_modal.dart';
+import 'widgets/cyber_switch.dart';
 import '../models/table_schema.dart';
+import '../models/query_result.dart';
 
 class SqlEditorView extends StatefulWidget {
   const SqlEditorView({super.key});
@@ -33,6 +36,7 @@ class _SqlEditorViewState extends State<SqlEditorView> {
   final TextEditingController _tableFilterCtrl = TextEditingController();
   String _tableFilter = '';
   bool _showOptionDetail = false;
+  bool _isSelectionMode = false;
 
   int? _sortColumnIndex;
   bool _sortAscending = true;
@@ -869,11 +873,15 @@ class _SqlEditorViewState extends State<SqlEditorView> {
                   color: state.safeMode ? Colors.green.shade800 : Colors.amber.shade900,
                 ),
               ),
-              const SizedBox(width: 4),
-              Switch(
+              const SizedBox(width: 8),
+              CyberSwitch(
                 value: state.safeMode,
                 onChanged: (val) => state.toggleSafeMode(val),
-                activeTrackColor: const Color(0xFF14B8A6),
+                activeColor: const Color(0xFF10B981),
+                activeThumbIcon: const Icon(Icons.shield, size: 10, color: Colors.white),
+                inactiveThumbIcon: Icon(Icons.shield_outlined, size: 10, color: Colors.amber.shade900),
+                tooltip: state.safeMode ? 'Safe Mode Guardrail Active' : 'Safe Mode Disabled (RAW)',
+                semanticLabel: 'Safe Mode Switch',
               ),
             ],
           ),
@@ -1072,7 +1080,7 @@ class _SqlEditorViewState extends State<SqlEditorView> {
                         iconColor: _isAutoSuggestEnabled ? Colors.tealAccent : Colors.grey,
                         title: _isAutoSuggestEnabled ? 'Auto-Helper: ON' : 'Auto-Helper: OFF',
                         subtitle: 'Smart inline SQL suggestions, tables, columns, and keywords',
-                        trailing: Switch(
+                        trailing: CyberSwitch(
                           value: _isAutoSuggestEnabled,
                           onChanged: (val) {
                             setState(() {
@@ -1081,7 +1089,8 @@ class _SqlEditorViewState extends State<SqlEditorView> {
                             });
                             Navigator.of(ctx).pop();
                           },
-                          activeTrackColor: const Color(0xFF14B8A6),
+                          activeColor: const Color(0xFF14B8A6),
+                          semanticLabel: 'Auto-Helper Switch',
                         ),
                         onTap: () {
                           setState(() {
@@ -1383,6 +1392,54 @@ class _SqlEditorViewState extends State<SqlEditorView> {
                 ),
                 const SizedBox(width: 8),
 
+                // Bulk Selection Mode Toggle
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _isSelectionMode = !_isSelectionMode;
+                      if (!_isSelectionMode) {
+                        state.clearRowSelection();
+                      }
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    height: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: _isSelectionMode
+                          ? const Color(0xFF14B8A6).withValues(alpha: 0.15)
+                          : Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: _isSelectionMode
+                            ? const Color(0xFF14B8A6)
+                            : Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _isSelectionMode ? Icons.checklist : Icons.checklist_outlined,
+                          size: 15,
+                          color: _isSelectionMode ? const Color(0xFF14B8A6) : Colors.grey,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Bulk Select',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: _isSelectionMode ? FontWeight.bold : FontWeight.w500,
+                            color: _isSelectionMode ? const Color(0xFF14B8A6) : Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
                 // Insert Row Action Button
                 ElevatedButton.icon(
                   onPressed: () => _openInsertRowModal(context, state, res),
@@ -1425,6 +1482,7 @@ class _SqlEditorViewState extends State<SqlEditorView> {
                       sortAscending: _sortAscending,
                       isSafeMode: state.safeMode,
                       showColumnDetails: _showOptionDetail,
+                      isSelectionMode: _isSelectionMode,
                       tableMetadata: _findTableMetadata(state, _inferTableName(state, res.columns) ?? '', res.columns),
                       allTables: state.tables,
                       onDuplicateRow: (rowIndex, rowValues) =>
@@ -1636,6 +1694,13 @@ class _SqlEditorViewState extends State<SqlEditorView> {
                           },
                         );
                       },
+                      selectedRowIndices: state.selectedRowIndices,
+                      onToggleRowSelection: (idx) => state.toggleRowSelection(idx),
+                      onRangeSelectRow: (idx) => state.selectRowRange(idx),
+                      onSelectAll: () => state.selectAllRows(rowsToDisplay.length),
+                      onClearSelection: () => state.clearRowSelection(),
+                      onBulkDelete: (indices) => _handleBulkDelete(context, state, res, indices),
+                      onBulkExport: (indices) => _exportSelectedRows(res, indices),
                     ),
         ),
 
@@ -1729,6 +1794,112 @@ class _SqlEditorViewState extends State<SqlEditorView> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _handleBulkDelete(
+    BuildContext context,
+    AppState state,
+    QueryResult res,
+    List<int> selectedIndices,
+  ) async {
+    final tbl = _inferTableName(state, res.columns);
+    if (tbl == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot identify target table for bulk delete')),
+      );
+      return;
+    }
+
+    final meta = _findTableMetadata(state, tbl, res.columns);
+    final pkSet = <String>{};
+    if (meta != null) {
+      for (final col in meta.columns) {
+        if (col.isPrimaryKey) pkSet.add(col.name);
+      }
+    }
+    if (pkSet.isEmpty) {
+      for (final col in res.columns) {
+        if (col.toLowerCase() == 'id') {
+          pkSet.add(col);
+          break;
+        }
+      }
+    }
+
+    final List<Map<String, dynamic>> primaryKeysList = [];
+    for (final rIdx in selectedIndices) {
+      if (rIdx < res.rows.length) {
+        final rowValues = res.rows[rIdx];
+        final Map<String, dynamic> pks = {};
+        if (pkSet.isNotEmpty) {
+          for (final pkCol in pkSet) {
+            final cIdx = res.columns.indexOf(pkCol);
+            if (cIdx != -1 && cIdx < rowValues.length) {
+              pks[pkCol] = rowValues[cIdx];
+            }
+          }
+        } else {
+          for (int i = 0; i < res.columns.length; i++) {
+            pks[res.columns[i]] = i < rowValues.length ? rowValues[i] : null;
+          }
+        }
+        primaryKeysList.add(pks);
+      }
+    }
+
+    if (primaryKeysList.isEmpty) return;
+
+    final confirmed = await showBulkDeleteModal(
+      context: context,
+      tableName: tbl,
+      selectedCount: primaryKeysList.length,
+      primaryKeysList: primaryKeysList,
+      isSafeMode: state.safeMode,
+      onConfirmDelete: () => state.bulkDeleteRows(
+        tableName: tbl,
+        primaryKeysList: primaryKeysList,
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      setState(() => _isSelectionMode = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Bulk deleted ${primaryKeysList.length} rows successfully'),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          width: 320,
+        ),
+      );
+    }
+  }
+
+  void _exportSelectedRows(QueryResult res, List<int> selectedIndices) {
+    final buffer = StringBuffer();
+    buffer.writeln(res.columns.join(','));
+    for (final idx in selectedIndices) {
+      if (idx < res.rows.length) {
+        final row = res.rows[idx];
+        final line = row.map((v) {
+          if (v == null) return '';
+          final str = v.toString();
+          if (str.contains(',') || str.contains('"') || str.contains('\n')) {
+            return '"${str.replaceAll('"', '""')}"';
+          }
+          return str;
+        }).join(',');
+        buffer.writeln(line);
+      }
+    }
+    Clipboard.setData(ClipboardData(text: buffer.toString()));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Exported ${selectedIndices.length} rows as CSV to clipboard'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        width: 340,
       ),
     );
   }

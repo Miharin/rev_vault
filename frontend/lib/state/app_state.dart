@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import '../models/connection.dart';
 import '../models/table_schema.dart';
@@ -745,6 +746,221 @@ class AppState extends ChangeNotifier {
       }
     } catch (e) {
       errorMessage = 'Recovery failed: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Multi-Row Selection State
+  final Set<int> selectedRowIndices = {};
+  int? _lastSelectedRowIndex;
+
+  void toggleRowSelection(int index) {
+    if (selectedRowIndices.contains(index)) {
+      selectedRowIndices.remove(index);
+    } else {
+      selectedRowIndices.add(index);
+    }
+    _lastSelectedRowIndex = index;
+    notifyListeners();
+  }
+
+  void selectRowRange(int targetIndex) {
+    if (_lastSelectedRowIndex == null) {
+      toggleRowSelection(targetIndex);
+      return;
+    }
+    final start = math.min(_lastSelectedRowIndex!, targetIndex);
+    final end = math.max(_lastSelectedRowIndex!, targetIndex);
+    for (int i = start; i <= end; i++) {
+      selectedRowIndices.add(i);
+    }
+    _lastSelectedRowIndex = targetIndex;
+    notifyListeners();
+  }
+
+  void selectAllRows(int totalRows) {
+    if (selectedRowIndices.length == totalRows) {
+      selectedRowIndices.clear();
+      _lastSelectedRowIndex = null;
+    } else {
+      selectedRowIndices.clear();
+      for (int i = 0; i < totalRows; i++) {
+        selectedRowIndices.add(i);
+      }
+    }
+    notifyListeners();
+  }
+
+  void clearRowSelection() {
+    if (selectedRowIndices.isNotEmpty) {
+      selectedRowIndices.clear();
+      _lastSelectedRowIndex = null;
+      notifyListeners();
+    }
+  }
+
+  // Table Management & Lifecycle Operations
+  Future<bool> createTable({
+    required String tableName,
+    String? schemaName,
+    required List<Map<String, dynamic>> columns,
+    bool ifNotExists = true,
+  }) async {
+    try {
+      final res = await api.createTable(
+        tableName: tableName,
+        schemaName: schemaName,
+        columns: columns,
+        ifNotExists: ifNotExists,
+      );
+      if (res['success'] == true) {
+        await loadSchema(refresh: true);
+        final fullTableName = (schemaName != null && schemaName.isNotEmpty && schemaName != 'public' && schemaName != 'main')
+            ? '$schemaName.$tableName'
+            : tableName;
+        await openTableTab(fullTableName);
+        return true;
+      } else {
+        errorMessage = res['error']?.toString() ?? 'Failed to create table';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      errorMessage = 'Create table failed: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> dropTable({
+    required String tableName,
+    String? schemaName,
+    bool cascade = false,
+  }) async {
+    try {
+      final res = await api.dropTable(
+        tableName: tableName,
+        schemaName: schemaName,
+        cascade: cascade,
+      );
+      if (res['success'] == true) {
+        // Close matching table preview tab if open
+        final fullTableName = (schemaName != null && schemaName.isNotEmpty && schemaName != 'public' && schemaName != 'main')
+            ? '$schemaName.$tableName'
+            : tableName;
+        final tabIdx = tabs.indexWhere((t) => t.isTablePreview && (t.tableName == tableName || t.tableName == fullTableName));
+        if (tabIdx != -1) {
+          closeTab(tabIdx);
+        }
+        await loadSchema(refresh: true);
+        return true;
+      } else {
+        errorMessage = res['error']?.toString() ?? 'Failed to drop table';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      errorMessage = 'Drop table failed: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> truncateTable({
+    required String tableName,
+    String? schemaName,
+    bool cascade = false,
+  }) async {
+    try {
+      final res = await api.truncateTable(
+        tableName: tableName,
+        schemaName: schemaName,
+        cascade: cascade,
+      );
+      if (res['success'] == true) {
+        clearRowSelection();
+        if (activeTab.isTablePreview && activeTab.tableName != null) {
+          await previewTable(activeTab.tableName!, page: 1);
+        } else if (activeTab.queryText.isNotEmpty) {
+          await runQuery(activeTab.queryText);
+        }
+        fetchMutationHistory();
+        return true;
+      } else {
+        errorMessage = res['error']?.toString() ?? 'Failed to truncate table';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      errorMessage = 'Truncate table failed: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> bulkDeleteRows({
+    required String tableName,
+    required List<Map<String, dynamic>> primaryKeysList,
+  }) async {
+    try {
+      final res = await api.bulkMutateRows(
+        tableName: tableName,
+        operation: 'delete',
+        rowsPks: primaryKeysList,
+      );
+      if (res['success'] == true) {
+        clearRowSelection();
+        if (activeTab.isTablePreview && activeTab.tableName != null) {
+          await previewTable(activeTab.tableName!, page: activeTab.page);
+        } else if (activeTab.queryText.isNotEmpty) {
+          await runQuery(activeTab.queryText);
+        }
+        fetchMutationHistory();
+        return true;
+      } else {
+        errorMessage = res['error']?.toString() ?? 'Bulk deletion failed';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      errorMessage = 'Bulk deletion failed: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> batchInsertRows({
+    required String tableName,
+    required List<Map<String, dynamic>> rowsData,
+    bool truncateFirst = false,
+  }) async {
+    try {
+      if (truncateFirst) {
+        final okTruncate = await truncateTable(tableName: tableName);
+        if (!okTruncate) return false;
+      }
+      final res = await api.bulkMutateRows(
+        tableName: tableName,
+        operation: 'insert',
+        rowsData: rowsData,
+      );
+      if (res['success'] == true) {
+        clearRowSelection();
+        if (activeTab.isTablePreview && activeTab.tableName != null) {
+          await previewTable(activeTab.tableName!, page: activeTab.page);
+        } else if (activeTab.queryText.isNotEmpty) {
+          await runQuery(activeTab.queryText);
+        }
+        fetchMutationHistory();
+        return true;
+      } else {
+        errorMessage = res['error']?.toString() ?? 'Batch insertion failed';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      errorMessage = 'Batch insertion failed: $e';
       notifyListeners();
       return false;
     }
