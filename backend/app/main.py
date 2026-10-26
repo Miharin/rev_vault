@@ -11,6 +11,7 @@ from app.api.routes_schema import router as schema_router
 from app.api.routes_query import router as query_router
 from app.api.routes_audit import router as audit_router
 from app.api.routes_codegen import router as codegen_router
+from app.api.routes_agent import router as agent_router
 from app.config import settings_manager
 from app.mcp.server import mcp
 
@@ -35,6 +36,7 @@ app.include_router(schema_router)
 app.include_router(query_router)
 app.include_router(audit_router)
 app.include_router(codegen_router)
+app.include_router(agent_router)
 
 @app.get("/health")
 async def health():

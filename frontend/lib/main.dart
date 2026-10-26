@@ -8,6 +8,7 @@ import 'views/sidebar_connections.dart';
 import 'views/schema_tree_view.dart';
 import 'views/sql_editor_view.dart';
 import 'views/mcp_monitor_view.dart';
+import 'views/ai_assistant_view.dart';
 import 'views/widgets/tactical_hud_widgets.dart';
 import 'views/widgets/mobile_connect_modal.dart';
 import 'views/widgets/backend_settings_modal.dart';
@@ -56,7 +57,7 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -250,6 +251,10 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                           icon: Icon(Icons.terminal, size: 14),
                           text: 'SQL Studio',
                         ),
+                        const Tab(
+                          icon: Icon(Icons.smart_toy, size: 14),
+                          text: 'AI Agent',
+                        ),
                         Tab(
                           icon: const Icon(Icons.security, size: 14),
                           text: 'Audit (${state.auditEvents.length})',
@@ -263,9 +268,12 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                   child: isMobile
                       ? TabBarView(
                           controller: _tabController,
-                          children: const [
-                            SqlEditorView(),
-                            McpMonitorView(),
+                          children: [
+                            const SqlEditorView(),
+                            AiAssistantView(
+                              onNavigateToEditor: () => _tabController.animateTo(0),
+                            ),
+                            const McpMonitorView(),
                           ],
                         )
                       : Row(
@@ -286,7 +294,12 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                                     ],
                                   ),
 
-                                  // Tab 2: Dedicated Antigravity MCP Live Audit Monitor
+                                  // Tab 2: In-App Public AI Assistant
+                                  AiAssistantView(
+                                    onNavigateToEditor: () => _tabController.animateTo(0),
+                                  ),
+
+                                  // Tab 3: Dedicated Antigravity MCP Live Audit Monitor
                                   const McpMonitorView(),
                                 ],
                               ),
@@ -748,9 +761,9 @@ Widget _buildDesktopHeader(
 
           const SizedBox(width: 12),
 
-          // Navigation Tabs (Explorer vs Audit)
+          // Navigation Tabs (Explorer vs AI Assistant vs Audit)
           SizedBox(
-            width: 380,
+            width: 530,
             child: TabBar(
               controller: _tabController,
               indicatorColor: accent,
@@ -761,6 +774,10 @@ Widget _buildDesktopHeader(
                 const Tab(
                   icon: Icon(Icons.terminal, size: 15),
                   text: 'Explorer & SQL',
+                ),
+                const Tab(
+                  icon: Icon(Icons.smart_toy, size: 15),
+                  text: 'AI Assistant',
                 ),
                 Tab(
                   icon: const Icon(Icons.security, size: 15),

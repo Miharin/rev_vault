@@ -479,5 +479,57 @@ class ApiService {
       };
     }
   }
+
+  Future<Map<String, dynamic>> getAgentStatus({String? ollamaUrl}) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/agent/status').replace(
+        queryParameters: ollamaUrl != null ? {'url': ollamaUrl} : null,
+      );
+      final res = await http.get(uri).timeout(const Duration(seconds: 4));
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+      return {'online': false, 'models': <String>[], 'default_model': 'gemma4:e4b'};
+    } catch (_) {
+      return {'online': false, 'models': <String>[], 'default_model': 'gemma4:e4b'};
+    }
+  }
+
+  Future<Map<String, dynamic>> sendAgentMessage({
+    required String message,
+    String model = 'gemma4:e4b',
+    List<Map<String, dynamic>> history = const [],
+    String? ollamaUrl,
+  }) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/agent/chat'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'message': message,
+          'model': model,
+          'history': history,
+          'ollama_url': ollamaUrl,
+        }),
+      ).timeout(const Duration(seconds: 120));
+
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+      return {
+        'reply': 'Server returned error (${res.statusCode}): ${res.body}',
+        'tool_executions': [],
+        'history': history,
+        'error': res.body,
+      };
+    } catch (e) {
+      return {
+        'reply': 'Failed to reach RevVault backend agent: $e',
+        'tool_executions': [],
+        'history': history,
+        'error': e.toString(),
+      };
+    }
+  }
 }
 
