@@ -6378,6 +6378,7 @@ imports:
  &#8226;   <a href="#app.core.audit">app.core.audit</a>
  &#8226;   <a href="#app.core.db_manager">app.core.db_manager</a>
  &#8226;   <a href="#app.core.explain_inspector">app.core.explain_inspector</a>
+ &#8226;   <a href="#app.core.history_manager">app.core.history_manager</a>
  &#8226;   <a href="#fastapi">fastapi</a>
  &#8226;   <a href="#pydantic">pydantic</a>
  &#8226;   <a href="#pydantic.BaseModel">pydantic.BaseModel</a>
@@ -6399,8 +6400,13 @@ imported by:
 imports:
     <a href="#app.api">app.api</a>
  &#8226;   <a href="#app.config">app.config</a>
+ &#8226;   <a href="#app.core.audit">app.core.audit</a>
+ &#8226;   <a href="#app.core.db_manager">app.core.db_manager</a>
  &#8226;   <a href="#app.core.schema_inspector">app.core.schema_inspector</a>
  &#8226;   <a href="#fastapi">fastapi</a>
+ &#8226;   <a href="#pydantic">pydantic</a>
+ &#8226;   <a href="#pydantic.BaseModel">pydantic.BaseModel</a>
+ &#8226;   <a href="#re">re</a>
  &#8226;   <a href="#typing">typing</a>
 
   </div>
@@ -6436,6 +6442,7 @@ imported by:
  &#8226;   <a href="#app.core.db_manager">app.core.db_manager</a>
  &#8226;   <a href="#app.core.explain_inspector">app.core.explain_inspector</a>
  &#8226;   <a href="#app.core.guardrail">app.core.guardrail</a>
+ &#8226;   <a href="#app.core.history_manager">app.core.history_manager</a>
  &#8226;   <a href="#app.core.schema_inspector">app.core.schema_inspector</a>
  &#8226;   <a href="#app.main">app.main</a>
  &#8226;   <a href="#app.mcp.server">app.mcp.server</a>
@@ -6460,6 +6467,7 @@ imported by:
  &#8226;   <a href="#app.core.db_manager">app.core.db_manager</a>
  &#8226;   <a href="#app.core.explain_inspector">app.core.explain_inspector</a>
  &#8226;   <a href="#app.core.guardrail">app.core.guardrail</a>
+ &#8226;   <a href="#app.core.history_manager">app.core.history_manager</a>
  &#8226;   <a href="#app.core.schema_inspector">app.core.schema_inspector</a>
 
   </div>
@@ -6483,6 +6491,8 @@ imports:
 imported by:
     <a href="#app.api.routes_audit">app.api.routes_audit</a>
  &#8226;   <a href="#app.api.routes_query">app.api.routes_query</a>
+ &#8226;   <a href="#app.api.routes_schema">app.api.routes_schema</a>
+ &#8226;   <a href="#app.core.history_manager">app.core.history_manager</a>
  &#8226;   <a href="#app.mcp.server">app.mcp.server</a>
 
   </div>
@@ -6528,7 +6538,9 @@ imports:
 imported by:
     <a href="#app.api.routes_connections">app.api.routes_connections</a>
  &#8226;   <a href="#app.api.routes_query">app.api.routes_query</a>
+ &#8226;   <a href="#app.api.routes_schema">app.api.routes_schema</a>
  &#8226;   <a href="#app.core.explain_inspector">app.core.explain_inspector</a>
+ &#8226;   <a href="#app.core.history_manager">app.core.history_manager</a>
  &#8226;   <a href="#app.core.schema_inspector">app.core.schema_inspector</a>
  &#8226;   <a href="#app.mcp.server">app.mcp.server</a>
 
@@ -6583,6 +6595,32 @@ imported by:
 </div>
 
 <div class="node">
+  <a name="app.core.history_manager"></a>
+  <a target="code" href="///home/miharin/Documents/Project/rev_vault/backend/app/core/history_manager.py" type="text/plain"><tt>app.core.history_manager</tt></a>
+<span class="moduletype">SourceModule</span>  <div class="import">
+imports:
+    <a href="#app.config">app.config</a>
+ &#8226;   <a href="#app.core">app.core</a>
+ &#8226;   <a href="#app.core.audit">app.core.audit</a>
+ &#8226;   <a href="#app.core.db_manager">app.core.db_manager</a>
+ &#8226;   <a href="#datetime">datetime</a>
+ &#8226;   <a href="#json">json</a>
+ &#8226;   <a href="#pathlib">pathlib</a>
+ &#8226;   <a href="#pydantic">pydantic</a>
+ &#8226;   <a href="#pydantic.BaseModel">pydantic.BaseModel</a>
+ &#8226;   <a href="#typing">typing</a>
+ &#8226;   <a href="#uuid">uuid</a>
+
+  </div>
+  <div class="import">
+imported by:
+    <a href="#app.api.routes_query">app.api.routes_query</a>
+
+  </div>
+
+</div>
+
+<div class="node">
   <a name="app.core.schema_inspector"></a>
   <a target="code" href="///home/miharin/Documents/Project/rev_vault/backend/app/core/schema_inspector.py" type="text/plain"><tt>app.core.schema_inspector</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -6591,6 +6629,7 @@ imports:
  &#8226;   <a href="#app.config">app.config</a>
  &#8226;   <a href="#app.core">app.core</a>
  &#8226;   <a href="#app.core.db_manager">app.core.db_manager</a>
+ &#8226;   <a href="#logging">logging</a>
  &#8226;   <a href="#time">time</a>
  &#8226;   <a href="#typing">typing</a>
 
@@ -12020,6 +12059,7 @@ imported by:
     <a href="#_strptime">_strptime</a>
  &#8226;   <a href="#annotated_types">annotated_types</a>
  &#8226;   <a href="#app.core.audit">app.core.audit</a>
+ &#8226;   <a href="#app.core.history_manager">app.core.history_manager</a>
  &#8226;   <a href="#calendar">calendar</a>
  &#8226;   <a href="#click.types">click.types</a>
  &#8226;   <a href="#email.utils">email.utils</a>
@@ -20996,6 +21036,7 @@ imported by:
     <a href="#app.config">app.config</a>
  &#8226;   <a href="#app.core.backend_codegen">app.core.backend_codegen</a>
  &#8226;   <a href="#app.core.explain_inspector">app.core.explain_inspector</a>
+ &#8226;   <a href="#app.core.history_manager">app.core.history_manager</a>
  &#8226;   <a href="#app.mcp.server">app.mcp.server</a>
  &#8226;   <a href="#asyncpg.prepared_stmt">asyncpg.prepared_stmt</a>
  &#8226;   <a href="#fastapi.openapi.docs">fastapi.openapi.docs</a>
@@ -21551,6 +21592,7 @@ imported by:
     <a href="#aiosqlite.core">aiosqlite.core</a>
  &#8226;   <a href="#aiosqlite.tests.helpers">aiosqlite.tests.helpers</a>
  &#8226;   <a href="#anyio.streams.tls">anyio.streams.tls</a>
+ &#8226;   <a href="#app.core.schema_inspector">app.core.schema_inspector</a>
  &#8226;   <a href="#asyncio.futures">asyncio.futures</a>
  &#8226;   <a href="#asyncio.log">asyncio.log</a>
  &#8226;   <a href="#asyncpg._testbase">asyncpg._testbase</a>
@@ -27919,6 +27961,7 @@ imported by:
  &#8226;   <a href="#anyio._core._fileio">anyio._core._fileio</a>
  &#8226;   <a href="#anyio.streams.file">anyio.streams.file</a>
  &#8226;   <a href="#app.config">app.config</a>
+ &#8226;   <a href="#app.core.history_manager">app.core.history_manager</a>
  &#8226;   <a href="#app.main">app.main</a>
  &#8226;   <a href="#asyncpg.compat">asyncpg.compat</a>
  &#8226;   <a href="#asyncpg.connect_utils">asyncpg.connect_utils</a>
@@ -28398,8 +28441,10 @@ imported by:
     <a href="#app.api.routes_codegen">app.api.routes_codegen</a>
  &#8226;   <a href="#app.api.routes_connections">app.api.routes_connections</a>
  &#8226;   <a href="#app.api.routes_query">app.api.routes_query</a>
+ &#8226;   <a href="#app.api.routes_schema">app.api.routes_schema</a>
  &#8226;   <a href="#app.config">app.config</a>
  &#8226;   <a href="#app.core.audit">app.core.audit</a>
+ &#8226;   <a href="#app.core.history_manager">app.core.history_manager</a>
  &#8226;   <a href="#fastapi._compat.shared">fastapi._compat.shared</a>
  &#8226;   <a href="#fastapi._compat.v2">fastapi._compat.v2</a>
  &#8226;   <a href="#fastapi.datastructures">fastapi.datastructures</a>
@@ -28524,8 +28569,10 @@ imported by:
     <a href="#app.api.routes_codegen">app.api.routes_codegen</a>
  &#8226;   <a href="#app.api.routes_connections">app.api.routes_connections</a>
  &#8226;   <a href="#app.api.routes_query">app.api.routes_query</a>
+ &#8226;   <a href="#app.api.routes_schema">app.api.routes_schema</a>
  &#8226;   <a href="#app.config">app.config</a>
  &#8226;   <a href="#app.core.audit">app.core.audit</a>
+ &#8226;   <a href="#app.core.history_manager">app.core.history_manager</a>
  &#8226;   <a href="#fastapi._compat.shared">fastapi._compat.shared</a>
  &#8226;   <a href="#fastapi._compat.v2">fastapi._compat.v2</a>
  &#8226;   <a href="#fastapi.dependencies.utils">fastapi.dependencies.utils</a>
@@ -40633,6 +40680,7 @@ imported by:
  &#8226;   <a href="#_sre">_sre</a>
  &#8226;   <a href="#_strptime">_strptime</a>
  &#8226;   <a href="#anyio.streams.tls">anyio.streams.tls</a>
+ &#8226;   <a href="#app.api.routes_schema">app.api.routes_schema</a>
  &#8226;   <a href="#app.core.backend_codegen">app.core.backend_codegen</a>
  &#8226;   <a href="#app.core.db_manager">app.core.db_manager</a>
  &#8226;   <a href="#app.core.explain_inspector">app.core.explain_inspector</a>
@@ -53926,6 +53974,7 @@ imported by:
  &#8226;   <a href="#app.core.db_manager">app.core.db_manager</a>
  &#8226;   <a href="#app.core.explain_inspector">app.core.explain_inspector</a>
  &#8226;   <a href="#app.core.guardrail">app.core.guardrail</a>
+ &#8226;   <a href="#app.core.history_manager">app.core.history_manager</a>
  &#8226;   <a href="#app.core.schema_inspector">app.core.schema_inspector</a>
  &#8226;   <a href="#app.mcp.server">app.mcp.server</a>
  &#8226;   <a href="#asyncpg._asyncio_compat">asyncpg._asyncio_compat</a>
@@ -55080,7 +55129,8 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#asyncpg.pgproto.pgproto">asyncpg.pgproto.pgproto</a>
+    <a href="#app.core.history_manager">app.core.history_manager</a>
+ &#8226;   <a href="#asyncpg.pgproto.pgproto">asyncpg.pgproto.pgproto</a>
  &#8226;   <a href="#click.types">click.types</a>
  &#8226;   <a href="#fastapi.encoders">fastapi.encoders</a>
  &#8226;   <a href="#jsonschema._format">jsonschema._format</a>
