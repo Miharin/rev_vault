@@ -1,3 +1,9 @@
+/*
+ *        (\__/)
+ *        (˶ᵔ ᵕ ᵔ˶)  < "Lunar Territory."
+ *       / >[CRIMSON+]>   "Hands off, unless you're Miharin."
+ */
+
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
@@ -8,6 +14,7 @@ import '../models/audit_event.dart';
 import '../models/saved_query.dart';
 import '../models/mutation_record.dart';
 import '../models/workspace_tab.dart';
+import '../models/ai_message.dart';
 import '../services/api_service.dart';
 import '../services/audit_stream_service.dart';
 import '../services/sql_autocomplete_service.dart';
@@ -466,7 +473,9 @@ class AppState extends ChangeNotifier {
   int get queryPageSize => activeTab.pageSize;
   set queryPageSize(int size) {
     activeTab.pageSize = size;
-    activeLimit = size;
+    // Guardrail: do not overwrite activeLimit with per-query pagination size.
+    // activeLimit represents the user's toolbar preset/preference, while queryPageSize
+    // represents the active tab's row pagination size (e.g. from SQL LIMIT).
     notifyListeners();
   }
 
@@ -1206,6 +1215,62 @@ class AppState extends ChangeNotifier {
 
   void toggleSafeMode(bool value) {
     safeMode = value;
+    notifyListeners();
+  }
+
+  // ===========================================================================
+  // AI Assistant Persistent Conversation State
+  // ===========================================================================
+  final List<AiAssistantMessage> _aiMessages = [];
+  List<AiAssistantMessage> get aiMessages => List.unmodifiable(_aiMessages);
+
+  String selectedAiModel = 'gemma4:e4b';
+  List<String> availableAiModels = ['gemma4:e4b'];
+  bool isAiLoading = false;
+  bool isOllamaOnline = false;
+  String ollamaUrl = 'http://localhost:11434';
+
+  void addAiMessage(AiAssistantMessage message) {
+    _aiMessages.add(message);
+    notifyListeners();
+  }
+
+  void clearAiMessages() {
+    _aiMessages.clear();
+    notifyListeners();
+  }
+
+  void setAiLoading(bool loading) {
+    isAiLoading = loading;
+    notifyListeners();
+  }
+
+  void setOllamaOnline(bool online) {
+    isOllamaOnline = online;
+    notifyListeners();
+  }
+
+  void setSelectedAiModel(String model) {
+    selectedAiModel = model;
+    notifyListeners();
+  }
+
+  void setAvailableAiModels(List<String> models, {bool lunarIncludeUnsafe = false}) {
+    availableAiModels = lunarIncludeUnsafe
+        ? models
+        : models.where((m) => !m.toLowerCase().contains('unsafe')).toList();
+    notifyListeners();
+  }
+
+  void setOllamaUrl(String url) {
+    var trimmed = url.trim();
+    while (trimmed.endsWith('/')) {
+      trimmed = trimmed.substring(0, trimmed.length - 1);
+    }
+    if (trimmed.isNotEmpty && !trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      trimmed = 'http://$trimmed';
+    }
+    ollamaUrl = trimmed.isNotEmpty ? trimmed : 'http://localhost:11434';
     notifyListeners();
   }
 

@@ -1,4 +1,4 @@
-.PHONY: start run backend frontend agent-luna web web-dev build-web test clean release-linux release-windows release-apk release-backend release-all install uninstall allow-firewall help
+.PHONY: start run backend frontend agent-cli web web-dev build-web test clean release-linux release-windows release-apk release-backend release-all install uninstall allow-firewall help
 
 # Default target starts both frontend and backend in one command
 start:
@@ -11,9 +11,9 @@ run:
 backend:
 	@./backend/.venv/bin/python backend/run_server.py
 
-# Run standalone Luna Ollama agent bridging with RevVault MCP
-agent-luna:
-	@./backend/.venv/bin/python scripts/lunar_standalone_agent.py
+# Run standalone RevVault CLI agent bridging with RevVault MCP
+agent-cli:
+	@./backend/.venv/bin/python scripts/revvault_standalone_agent.py
 
 # Run only the Flutter desktop frontend
 frontend:
@@ -81,7 +81,7 @@ help:
 	@echo "  make build-web         - Compile optimized static Flutter web bundle"
 	@echo "  make backend           - Start only the FastAPI backend server"
 	@echo "  make frontend          - Start only the Flutter desktop client"
-	@echo "  make agent-luna        - Launch standalone terminal Luna agent (Ollama + RevVault MCP)"
+	@echo "  make agent-cli         - Launch standalone terminal RevVault AI agent (Ollama + MCP)"
 	@echo "  make test              - Run backend pytest test suite"
 	@echo "  make allow-firewall    - Open ports 8000-8010 in Linux firewall (UFW/Firewalld)"
 	@echo ""

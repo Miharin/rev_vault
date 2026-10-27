@@ -203,6 +203,7 @@ def generate_appimage(bundle_dir: Path, version: str):
         log(f"Invoking appimagetool to create {out_appimage.name}...")
         env = os.environ.copy()
         env["ARCH"] = "x86_64"
+        env["APPIMAGE_EXTRACT_AND_RUN"] = "1"
         run_cmd([appimagetool, str(appdir), str(out_appimage)], env=env)
         log(f"AppImage successfully generated: {out_appimage}")
     else:
@@ -245,6 +246,7 @@ def build_windows(version: str):
             for file in files:
                 full_path = Path(root) / file
                 arcname = full_path.relative_to(DIST_DIR)
+                zf.write(full_path, arcname)
     log(f"Windows zip release ready: {zip_path}")
 
     # Check for Inno Setup compiler to create single-file Setup.exe
@@ -262,7 +264,7 @@ def build_windows(version: str):
     if iscc:
         log("Compiling single-file Windows installer using Inno Setup (ISCC)...")
         iss_file = ROOT_DIR / "scripts" / "windows" / "revvault.iss"
-        run_cmd([iscc, str(iss_file)])
+        run_cmd([iscc, f"/DMyAppVersion={version}", str(iss_file)])
         setup_exe = DIST_DIR / f"RevVault-Setup-v{version}.exe"
         if setup_exe.is_file():
             log(f"Single-file Windows setup installer ready: {setup_exe}")
@@ -270,7 +272,7 @@ def build_windows(version: str):
         log("Notice: Inno Setup (ISCC.exe) not found in PATH or standard Program Files directories.")
         log("To generate a single-file 'RevVault-Setup.exe', install Inno Setup (https://jrsoftware.org/isdl.php).")
 
-def build_apk():
+def build_apk(version: str = "1.0.0"):
     flutter = find_flutter()
     log("Compiling Flutter Android Release APK...")
     run_cmd([flutter, "build", "apk", "--release"], cwd=FRONTEND_DIR)
@@ -281,8 +283,10 @@ def build_apk():
 
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     out_apk = DIST_DIR / "revvault.apk"
+    versioned_apk = DIST_DIR / f"RevVault-v{version}.apk"
     shutil.copy2(apk_source, out_apk)
-    log(f"Android APK successfully packaged: {out_apk}")
+    shutil.copy2(apk_source, versioned_apk)
+    log(f"Android APK successfully packaged: {out_apk} and {versioned_apk}")
 
 def main():
     parser = argparse.ArgumentParser(description="RevVault Unified Release Builder")
@@ -307,7 +311,7 @@ def main():
         return
 
     if args.apk:
-        build_apk()
+        build_apk(args.version)
         return
 
     if args.linux or (args.all and sys.platform == "linux"):

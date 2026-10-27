@@ -779,6 +779,38 @@ class _SqlEditorViewState extends State<SqlEditorView> {
     );
   }
 
+  List<DropdownMenuItem<int?>> _buildLimitItems(int? activeLimit) {
+    const standardLimits = <int?>[25, 50, 100, 250, 500, 1000, null];
+    final items = <DropdownMenuItem<int?>>[];
+
+    if (activeLimit != null && !standardLimits.contains(activeLimit)) {
+      items.add(
+        DropdownMenuItem<int?>(
+          value: activeLimit,
+          child: Text('Limit: $activeLimit (Custom)'),
+        ),
+      );
+    }
+
+    for (final limit in standardLimits) {
+      items.add(
+        DropdownMenuItem<int?>(
+          value: limit,
+          child: Text(limit == null ? 'No Limit' : 'Limit: $limit'),
+        ),
+      );
+    }
+
+    return items;
+  }
+
+  int? _resolveActiveLimit(int? activeLimit, List<DropdownMenuItem<int?>> items) {
+    if (items.any((item) => item.value == activeLimit)) {
+      return activeLimit;
+    }
+    return null;
+  }
+
   Widget _buildDesktopToolbar(
     BuildContext context,
     AppState state,
@@ -899,39 +931,38 @@ class _SqlEditorViewState extends State<SqlEditorView> {
           const SizedBox(width: 16),
 
           // Limit Selector
-          Container(
-            height: 28,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(
-                color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
-              ),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<int?>(
-                value: state.activeLimit,
-                isDense: true,
-                icon: const Icon(Icons.arrow_drop_down, size: 16),
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
+          Builder(
+            builder: (context) {
+              final limitItems = _buildLimitItems(state.activeLimit);
+              final resolvedLimit = _resolveActiveLimit(state.activeLimit, limitItems);
+
+              return Container(
+                height: 28,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
+                  ),
                 ),
-                dropdownColor: Theme.of(context).colorScheme.surface,
-                items: const [
-                  DropdownMenuItem(value: 25, child: Text('Limit: 25')),
-                  DropdownMenuItem(value: 50, child: Text('Limit: 50')),
-                  DropdownMenuItem(value: 100, child: Text('Limit: 100')),
-                  DropdownMenuItem(value: 250, child: Text('Limit: 250')),
-                  DropdownMenuItem(value: 500, child: Text('Limit: 500')),
-                  DropdownMenuItem(value: 1000, child: Text('Limit: 1000')),
-                  DropdownMenuItem(value: null, child: Text('No Limit')),
-                ],
-                onChanged: (val) => state.setActiveLimit(val),
-              ),
-            ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<int?>(
+                    value: resolvedLimit,
+                    isDense: true,
+                    icon: const Icon(Icons.arrow_drop_down, size: 16),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                    dropdownColor: Theme.of(context).colorScheme.surface,
+                    items: limitItems,
+                    onChanged: (val) => state.setActiveLimit(val),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

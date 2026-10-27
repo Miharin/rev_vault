@@ -105,6 +105,14 @@ class DatabaseManager:
         effective_limit: Optional[int] = None
         offset: int = 0
 
+        # Auto-resolve JOINs if any JOIN clause lacks an ON/USING condition
+        if " JOIN " in sql.upper() or "\nJOIN " in sql.upper():
+            try:
+                from app.core.schema_inspector import schema_inspector
+                sql = await schema_inspector.auto_resolve_joins(config, sql)
+            except Exception:
+                pass
+
         # Apply Guardrail if safe_mode is active
         if safe_mode:
             is_safe, error_msg, sanitized_sql = guardrail.validate_and_sanitize(

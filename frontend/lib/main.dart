@@ -268,6 +268,7 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                   child: isMobile
                       ? TabBarView(
                           controller: _tabController,
+                          physics: const NeverScrollableScrollPhysics(),
                           children: [
                             const SqlEditorView(),
                             AiAssistantView(
@@ -285,6 +286,7 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                             Expanded(
                               child: TabBarView(
                                 controller: _tabController,
+                                physics: const NeverScrollableScrollPhysics(),
                                 children: [
                                   // Tab 1: Database Schema Tree + SQL Editor & Virtual Grid
                                   Row(
@@ -424,6 +426,7 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
               ),
               const Expanded(
                 child: TabBarView(
+                  physics: NeverScrollableScrollPhysics(),
                   children: [
                     SidebarConnections(forceExpanded: true),
                     SchemaTreeView(forceExpanded: true),

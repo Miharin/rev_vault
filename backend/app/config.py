@@ -54,20 +54,27 @@ class SavedQueryConfig(BaseModel):
 class SettingsManager:
     def __init__(self, data_dir: Path = DEFAULT_DATA_DIR):
         self.data_dir = data_dir
-        self.data_dir.mkdir(parents=True, exist_ok=True)
+        if not self.data_dir.exists():
+            try:
+                self.data_dir.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                pass
         self.connections_file = self.data_dir / "connections.json"
         self.guardrail_file = self.data_dir / "guardrail.json"
         self.saved_queries_file = self.data_dir / "saved_queries.json"
         self._ensure_files()
 
     def _ensure_files(self):
-        if not self.connections_file.exists():
-            self.connections_file.write_text("[]", encoding="utf-8")
-        if not self.guardrail_file.exists():
-            default_guard = GuardrailSettings().model_dump_json(indent=2)
-            self.guardrail_file.write_text(default_guard, encoding="utf-8")
-        if not self.saved_queries_file.exists():
-            self.saved_queries_file.write_text("[]", encoding="utf-8")
+        try:
+            if not self.connections_file.exists():
+                self.connections_file.write_text("[]", encoding="utf-8")
+            if not self.guardrail_file.exists():
+                default_guard = GuardrailSettings().model_dump_json(indent=2)
+                self.guardrail_file.write_text(default_guard, encoding="utf-8")
+            if not self.saved_queries_file.exists():
+                self.saved_queries_file.write_text("[]", encoding="utf-8")
+        except OSError:
+            pass
 
     def load_connections(self) -> List[ConnectionConfig]:
         try:

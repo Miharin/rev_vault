@@ -107,6 +107,25 @@ async def test_foreign_key_and_relationships(temp_sqlite_db):
     assert relations[0]["target_table"] == "users"
     assert relations[0]["target_column"] == "id"
 
+    # Format relations summary
+    summary = schema_inspector.format_relations_summary(relations)
+    assert summary["total_database_relations"] == 1
+    assert summary["returned_relations_count"] == 1
+
+    # Filter by source table
+    orders_summary = schema_inspector.format_relations_summary(relations, table_name="orders")
+    assert orders_summary["matched_relations_count"] == 1
+    assert orders_summary["relations"][0]["source_table"] == "orders"
+
+    # Filter by target table (incoming FK)
+    users_summary = schema_inspector.format_relations_summary(relations, table_name="users")
+    assert users_summary["matched_relations_count"] == 1
+    assert users_summary["relations"][0]["target_table"] == "users"
+
+    # Filter by nonexistent table
+    empty_summary = schema_inspector.format_relations_summary(relations, table_name="missing_table")
+    assert empty_summary["matched_relations_count"] == 0
+
 @pytest.mark.asyncio
 async def test_explain_query_inspector(temp_sqlite_db):
     from app.core.explain_inspector import explain_inspector
@@ -172,6 +191,119 @@ async def test_row_mutation_update_and_delete(temp_sqlite_db):
         safe_mode=True
     )
     assert count_res.rows[0][0] == 1
+
+
+@pytest.mark.asyncio
+async def test_schema_inspector_format_tables_summary(temp_sqlite_db):
+    tables = await schema_inspector.get_tables(temp_sqlite_db, include_views=True)
+    summary = schema_inspector.format_tables_summary(tables, limit=10)
+
+    assert summary["total_database_tables"] == len(tables)
+    assert "main" in summary["schemas_summary"]
+    assert summary["matched_tables_count"] == len(tables)
+    assert summary["returned_tables_count"] == len(tables)
+    assert summary["has_more"] is False
+    assert len(summary["tables"]) == len(tables)
+
+    # Verify lightweight summary dictionary structure (no column bloat)
+    first_tbl = summary["tables"][0]
+    assert "name" in first_tbl
+    assert "schema" in first_tbl
+    assert "columns_count" in first_tbl
+    assert "columns" not in first_tbl  # Must NOT leak heavy column details!
+
+    # Test search filter
+    filtered_summary = schema_inspector.format_tables_summary(tables, search="user")
+    assert filtered_summary["matched_tables_count"] == 1
+    assert filtered_summary["tables"][0]["name"] == "users"
+
+
+def test_lunar_find_table_resolution():
+    from app.core.schema_inspector import TableMetadata, ColumnMetadata
+    tables = [
+        TableMetadata(name="users", schema="public", raw_name="users"),
+        TableMetadata(name="unit", schema="public", raw_name="unit"),
+        TableMetadata(name="rawat_inap_rme.cara_keluar", schema="rawat_inap_rme", raw_name="cara_keluar")
+    ]
+    # Exact display name
+    assert schema_inspector.lunar_find_table(tables, "users") is not None
+    assert schema_inspector.lunar_find_table(tables, "users").raw_name == "users"
+
+    # Schema-qualified display name
+    assert schema_inspector.lunar_find_table(tables, "public.users") is not None
+    assert schema_inspector.lunar_find_table(tables, "public.users").raw_name == "users"
+
+    # Quoted schema-qualified name
+    assert schema_inspector.lunar_find_table(tables, '"public"."unit"') is not None
+    assert schema_inspector.lunar_find_table(tables, '"public"."unit"').raw_name == "unit"
+
+    # Multi-schema table
+    assert schema_inspector.lunar_find_table(tables, "rawat_inap_rme.cara_keluar") is not None
+    assert schema_inspector.lunar_find_table(tables, "cara_keluar") is not None
+    assert schema_inspector.lunar_find_table(tables, "non_existent") is None
+
+
+def test_lunar_predict_join_condition():
+    from app.core.schema_inspector import TableMetadata, ColumnMetadata, ForeignKeyMetadata
+    t_cara_keluar = TableMetadata(
+        name="rawat_inap_rme.cara_keluar",
+        schema="rawat_inap_rme",
+        raw_name="cara_keluar",
+        columns=[
+            ColumnMetadata(name="counter", data_type="integer"),
+            ColumnMetadata(name="kd_user", data_type="varchar"),
+            ColumnMetadata(name="cara_keluar", data_type="varchar"),
+        ]
+    )
+    t_users = TableMetadata(
+        name="users",
+        schema="public",
+        raw_name="users",
+        columns=[
+            ColumnMetadata(name="kd_user", data_type="smallint", is_primary_key=True),
+            ColumnMetadata(name="nama_user", data_type="varchar"),
+            ColumnMetadata(name="unit", data_type="integer"),
+        ],
+        foreign_keys=[
+            ForeignKeyMetadata(column_name="unit", target_table="unit", target_column="kd_unit")
+        ]
+    )
+    t_unit = TableMetadata(
+        name="unit",
+        schema="public",
+        raw_name="unit",
+        columns=[
+            ColumnMetadata(name="kd_unit", data_type="integer", is_primary_key=True),
+            ColumnMetadata(name="nama_unit", data_type="varchar"),
+        ]
+    )
+
+    # 1. Exact domain identifier intersection: cara_keluar and users (kd_user)
+    pred_user = schema_inspector.lunar_predict_join_condition(t_cara_keluar, t_users, alias_a="c", alias_b="u")
+    assert pred_user is not None
+    assert pred_user["method"] == "EXACT_IDENTIFIER_MATCH"
+    assert pred_user["on_clause"] == "c.kd_user = u.kd_user"
+
+    # 2. Foreign Key catalog: users and unit (users.unit = unit.kd_unit)
+    pred_unit = schema_inspector.lunar_predict_join_condition(t_users, t_unit, alias_a="u", alias_b="un")
+    assert pred_unit is not None
+    assert pred_unit["method"] == "FOREIGN_KEY_CATALOG"
+    assert pred_unit["on_clause"] == "u.unit = un.kd_unit"
+
+    # 3. Entity-code heuristic without explicit FK
+    t_users_nofk = TableMetadata(
+        name="users",
+        schema="public",
+        raw_name="users",
+        columns=[
+            ColumnMetadata(name="kd_user", data_type="smallint", is_primary_key=True),
+            ColumnMetadata(name="unit", data_type="integer"),
+        ]
+    )
+    pred_heuristic = schema_inspector.lunar_predict_join_condition(t_users_nofk, t_unit, alias_a="u", alias_b="un")
+    assert pred_heuristic is not None
+    assert "u.unit = un.kd_unit" in pred_heuristic["on_clause"]
+
 
 
 

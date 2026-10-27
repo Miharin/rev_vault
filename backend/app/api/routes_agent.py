@@ -11,6 +11,7 @@ class AgentChatRequest(BaseModel):
     model: str = Field(default=DEFAULT_MODEL, description="Target Ollama model")
     history: List[Dict[str, Any]] = Field(default=[], description="Previous conversation messages")
     ollama_url: Optional[str] = Field(default=DEFAULT_OLLAMA_URL, description="Ollama API base URL")
+    persona: str = Field(default="standard", description="Agent persona (default: 'standard')")
 
 
 class ToolExecutionDto(BaseModel):
@@ -18,6 +19,7 @@ class ToolExecutionDto(BaseModel):
     arguments: Dict[str, Any]
     output_preview: str
     success: bool
+    data: Optional[Dict[str, Any]] = None
 
 
 class AgentChatResponse(BaseModel):
@@ -28,11 +30,15 @@ class AgentChatResponse(BaseModel):
 
 
 @router.get("/status")
-async def get_agent_status(url: str = Query(default=DEFAULT_OLLAMA_URL)):
+async def get_agent_status(
+    url: str = Query(default=DEFAULT_OLLAMA_URL),
+    include_unsafe: bool = Query(default=False, description="Whether to include models flagged or named 'unsafe'")
+):
     """
     Check if local Ollama daemon is reachable and list installed models.
+    Filters out models flagged or named 'unsafe' by default.
     """
-    return await agent_service.check_status(ollama_url=url)
+    return await agent_service.check_status(ollama_url=url, include_unsafe=include_unsafe)
 
 
 @router.post("/chat", response_model=AgentChatResponse)
@@ -45,7 +51,8 @@ async def chat_with_agent(req: AgentChatRequest):
         user_message=req.message,
         conversation_history=req.history,
         model=req.model,
-        ollama_url=req.ollama_url or DEFAULT_OLLAMA_URL
+        ollama_url=req.ollama_url or DEFAULT_OLLAMA_URL,
+        persona=req.persona
     )
 
     return AgentChatResponse(

@@ -480,10 +480,17 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> getAgentStatus({String? ollamaUrl}) async {
+  Future<Map<String, dynamic>> getAgentStatus({
+    String? ollamaUrl,
+    bool lunarIncludeUnsafe = false,
+  }) async {
     try {
+      final lunarParams = <String, String>{};
+      if (ollamaUrl != null) lunarParams['url'] = ollamaUrl;
+      if (lunarIncludeUnsafe) lunarParams['include_unsafe'] = 'true';
+
       final uri = Uri.parse('$baseUrl/api/agent/status').replace(
-        queryParameters: ollamaUrl != null ? {'url': ollamaUrl} : null,
+        queryParameters: lunarParams.isNotEmpty ? lunarParams : null,
       );
       final res = await http.get(uri).timeout(const Duration(seconds: 4));
       if (res.statusCode == 200) {
@@ -500,6 +507,7 @@ class ApiService {
     String model = 'gemma4:e4b',
     List<Map<String, dynamic>> history = const [],
     String? ollamaUrl,
+    String persona = 'standard',
   }) async {
     try {
       final res = await http.post(
@@ -510,8 +518,9 @@ class ApiService {
           'model': model,
           'history': history,
           'ollama_url': ollamaUrl,
+          'persona': persona,
         }),
-      ).timeout(const Duration(seconds: 120));
+      ).timeout(const Duration(hours: 1)); // 1 hour agent response window
 
       if (res.statusCode == 200) {
         return jsonDecode(res.body) as Map<String, dynamic>;

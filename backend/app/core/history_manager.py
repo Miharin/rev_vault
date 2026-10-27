@@ -48,13 +48,20 @@ class HistoryManager:
 
     def __init__(self, data_dir: Path = DEFAULT_DATA_DIR):
         self.data_dir = data_dir
-        self.data_dir.mkdir(parents=True, exist_ok=True)
+        if not self.data_dir.exists():
+            try:
+                self.data_dir.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                pass
         self.history_file = self.data_dir / "mutation_history.json"
         self._ensure_file()
 
     def _ensure_file(self):
-        if not self.history_file.exists():
-            self.history_file.write_text("[]", encoding="utf-8")
+        try:
+            if not self.history_file.exists():
+                self.history_file.write_text("[]", encoding="utf-8")
+        except OSError:
+            pass
 
     def load_history(self) -> List[MutationRecord]:
         try:

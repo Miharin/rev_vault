@@ -962,6 +962,7 @@ class _CreateTableModalDialogState extends State<_CreateTableModalDialog>
             Expanded(
               child: TabBarView(
                 controller: _tabCtrl,
+                physics: const NeverScrollableScrollPhysics(),
                 children: [
                   // Tab 1: Columns Builder
                   Padding(

@@ -2,7 +2,9 @@
 ; Compiles the Flutter app + embedded Python backend into a single setup executable
 
 #define MyAppName "RevVault"
+#ifndef MyAppVersion
 #define MyAppVersion "1.0.0"
+#endif
 #define MyAppPublisher "Relva"
 #define MyAppURL "https://github.com/relva/rev_vault"
 #define MyAppExeName "rev_vault.exe"

@@ -25,14 +25,28 @@ async def describe_table(table_name: str):
     return t.to_dict()
 
 @router.get("/relationships", response_model=List[Dict[str, Any]])
-async def get_relationships(refresh: bool = False):
+async def get_relationships(
+    refresh: bool = False,
+    table: Optional[str] = None,
+    schema: Optional[str] = None
+):
     """
-    Returns all detected Foreign Key entity relationships across active database tables.
+    Returns detected Foreign Key entity relationships across active database tables.
+    Supports optional filtering by table name or schema.
     """
     conn = settings_manager.get_active_connection()
     if not conn:
         raise HTTPException(status_code=400, detail="No active database connection configured")
-    return await schema_inspector.get_relationships(conn, refresh=refresh)
+    relations = await schema_inspector.get_relationships(conn, refresh=refresh)
+    if table or schema:
+        summary = schema_inspector.format_relations_summary(
+            relations=relations,
+            table_name=table,
+            schema=schema,
+            limit=None
+        )
+        return summary["relations"]
+    return relations
 
 
 class ColumnDef(BaseModel):
