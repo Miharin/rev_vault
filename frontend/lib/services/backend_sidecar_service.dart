@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
 
 /// Service responsible for managing the embedded Python backend sidecar process
 /// on Desktop platforms (Linux, Windows, macOS).
@@ -16,9 +17,13 @@ class BackendSidecarService with WidgetsBindingObserver {
   int _activePort = 8000;
   bool _isManagedByApp = false;
   Completer<int>? _portCompleter;
+  String? _lastStderr;
+  int? _lastExitCode;
 
   int get activePort => _activePort;
   String get baseUrl => 'http://127.0.0.1:$_activePort';
+  String? get lastError => _lastStderr;
+  int? get lastExitCode => _lastExitCode;
 
   /// Ensures that a RevVault backend instance is running and healthy.
   /// If an external backend is already online on [targetPort], it will be reused.
@@ -27,6 +32,9 @@ class BackendSidecarService with WidgetsBindingObserver {
     if (kIsWeb || (!Platform.isLinux && !Platform.isWindows && !Platform.isMacOS)) {
       return targetPort;
     }
+
+    _lastStderr = null;
+    _lastExitCode = null;
 
     // 1. Check if backend is already online
     final isAlreadyUp = await _probeHealth(targetPort);
@@ -66,6 +74,7 @@ class BackendSidecarService with WidgetsBindingObserver {
         executable,
         args,
         workingDirectory: File(executable).parent.path,
+        environment: {'REVVAULT_HEADLESS': '1'},
         mode: ProcessStartMode.normal,
       );
       _isManagedByApp = true;
@@ -86,24 +95,26 @@ class BackendSidecarService with WidgetsBindingObserver {
 
       _process!.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
         debugPrint('[Backend stderr] $line');
+        _lastStderr = line;
       });
 
       _process!.exitCode.then((code) {
         debugPrint('[Sidecar] Backend exited with code $code');
+        _lastExitCode = code;
         _isManagedByApp = false;
         _process = null;
       });
 
-      // Wait for port announcement with 3s timeout
+      // Wait for port announcement with 8s timeout for cold starts
       _activePort = await _portCompleter!.future.timeout(
-        const Duration(seconds: 3),
+        const Duration(seconds: 8),
         onTimeout: () => targetPort,
       );
 
       // Poll health until 200 OK
       final ready = await _pollUntilHealthy(_activePort, timeout: const Duration(seconds: 10));
       if (!ready) {
-        debugPrint('[Sidecar] Backend failed health check timeout.');
+        debugPrint('[Sidecar] Backend failed health check timeout. (lastExit: $_lastExitCode, lastErr: $_lastStderr)');
       } else {
         debugPrint('[Sidecar] Backend is healthy on port $_activePort');
       }
@@ -111,6 +122,7 @@ class BackendSidecarService with WidgetsBindingObserver {
       return _activePort;
     } catch (e) {
       debugPrint('[Sidecar] Failed to launch backend sidecar: $e');
+      _lastStderr = e.toString();
       return targetPort;
     }
   }
@@ -130,6 +142,10 @@ class BackendSidecarService with WidgetsBindingObserver {
       if (await _probeHealth(port)) {
         return true;
       }
+      // If the backend process terminated during polling, abort early
+      if (_isManagedByApp && _process == null) {
+        return false;
+      }
       await Future.delayed(const Duration(milliseconds: 250));
     }
     return false;
@@ -143,35 +159,45 @@ class BackendSidecarService with WidgetsBindingObserver {
       // 1. Release bundle path: ./backend/revvault-backend
       results.add(_Candidate(
         type: _CandidateType.direct,
-        path: '$execDir/backend/revvault-backend',
+        path: p.normalize(p.join(execDir, 'backend', 'revvault-backend')),
+      ));
+      // 1b. Nested bundle path: ./backend/revvault-backend/revvault-backend
+      results.add(_Candidate(
+        type: _CandidateType.direct,
+        path: p.normalize(p.join(execDir, 'backend', 'revvault-backend', 'revvault-backend')),
       ));
       // 2. Adjacent binary: ./revvault-backend
       results.add(_Candidate(
         type: _CandidateType.direct,
-        path: '$execDir/revvault-backend',
+        path: p.normalize(p.join(execDir, 'revvault-backend')),
       ));
       // 3. Local dev fallback
       results.add(_Candidate(
         type: _CandidateType.pythonScript,
-        path: '${Directory.current.path}/../backend/run_server.py',
-        pythonBin: '${Directory.current.path}/../backend/.venv/bin/python',
+        path: p.normalize(p.join(Directory.current.path, '..', 'backend', 'run_server.py')),
+        pythonBin: p.normalize(p.join(Directory.current.path, '..', 'backend', '.venv', 'bin', 'python')),
       ));
     } else if (Platform.isWindows) {
       // 1. Release bundle path: ./backend/revvault-backend.exe
       results.add(_Candidate(
         type: _CandidateType.direct,
-        path: '$execDir\\backend\\revvault-backend.exe',
+        path: p.normalize(p.join(execDir, 'backend', 'revvault-backend.exe')),
+      ));
+      // 1b. Nested bundle path: ./backend/revvault-backend/revvault-backend.exe
+      results.add(_Candidate(
+        type: _CandidateType.direct,
+        path: p.normalize(p.join(execDir, 'backend', 'revvault-backend', 'revvault-backend.exe')),
       ));
       // 2. Adjacent binary: ./revvault-backend.exe
       results.add(_Candidate(
         type: _CandidateType.direct,
-        path: '$execDir\\revvault-backend.exe',
+        path: p.normalize(p.join(execDir, 'revvault-backend.exe')),
       ));
       // 3. Local dev fallback
       results.add(_Candidate(
         type: _CandidateType.pythonScript,
-        path: '${Directory.current.path}\\..\\backend\\run_server.py',
-        pythonBin: '${Directory.current.path}\\..\\backend\\.venv\\Scripts\\python.exe',
+        path: p.normalize(p.join(Directory.current.path, '..', 'backend', 'run_server.py')),
+        pythonBin: p.normalize(p.join(Directory.current.path, '..', 'backend', '.venv', 'Scripts', 'python.exe')),
       ));
     }
 

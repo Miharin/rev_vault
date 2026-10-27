@@ -217,7 +217,13 @@ class AppState extends ChangeNotifier {
       ]);
       _initAuditStream();
     } else {
-      errorMessage = 'RevVault backend service is not reachable at $defaultUrl.';
+      final sidecarErr = BackendSidecarService.instance.lastError;
+      final exitCode = BackendSidecarService.instance.lastExitCode;
+      if (exitCode != null) {
+        errorMessage = 'RevVault backend process exited unexpectedly (code $exitCode)${sidecarErr != null ? ': $sidecarErr' : ''}.';
+      } else {
+        errorMessage = 'RevVault backend service is not reachable at $defaultUrl.';
+      }
     }
 
     isLoading = false;

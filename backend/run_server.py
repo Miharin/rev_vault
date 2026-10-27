@@ -17,13 +17,37 @@ if str(backend_dir) not in sys.path:
 import uvicorn
 from app.main import app
 
+import traceback
+
+def log_fatal_error(err_msg: str) -> None:
+    """Writes fatal crashes to platform-appropriate backend.log for easy diagnosis."""
+    candidates = [
+        Path.home() / ".revvault" / "backend.log",
+        Path(sys.executable).parent / "backend.log",
+    ]
+    if sys.platform == "win32":
+        app_data = os.environ.get("APPDATA")
+        if app_data:
+            candidates.insert(0, Path(app_data) / "Relva" / "RevVault" / "backend.log")
+
+    for log_path in candidates:
+        try:
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(err_msg + "\n")
+            break
+        except Exception:
+            pass
+
 def find_available_port(start_port: int, max_attempts: int = 30) -> int:
     """Attempts to find an open TCP port starting from start_port."""
     for p in range(start_port, start_port + max_attempts):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            # On Windows, SO_REUSEADDR enables port hijacking and gives false-positives for busy ports
+            if sys.platform != "win32":
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
-                s.bind(("0.0.0.0", p))
+                s.bind(("127.0.0.1", p))
                 return p
             except OSError:
                 continue
@@ -74,4 +98,15 @@ def main():
         uvicorn.run(app, host=args.host, port=port, reload=False, log_level="info")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        fatal_msg = f"[FATAL] RevVault Backend crashed unexpectedly:\n{traceback.format_exc()}"
+        print(fatal_msg, file=sys.stderr, flush=True)
+        log_fatal_error(fatal_msg)
+        if not os.environ.get("REVVAULT_HEADLESS"):
+            try:
+                input("\nPress Enter to exit...")
+            except Exception:
+                pass
+        sys.exit(1)

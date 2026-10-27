@@ -9,17 +9,48 @@ backend_dir = Path(SPECPATH).resolve()
 # Collect all dynamic submodules for key libraries
 hidden_imports = (
     collect_submodules("uvicorn")
+    + collect_submodules("fastapi")
+    + collect_submodules("starlette")
+    + collect_submodules("anyio")
+    + collect_submodules("sse_starlette")
+    + collect_submodules("mcp.server")
+    + collect_submodules("mcp.types")
+    + collect_submodules("mcp.shared")
     + collect_submodules("sqlglot")
     + collect_submodules("aiosqlite")
     + collect_submodules("asyncpg")
     + collect_submodules("pydantic")
     + collect_submodules("pydantic_core")
     + collect_submodules("websockets")
+    + collect_submodules("sqlite3")
     + collect_submodules("app")
+    + [
+        "anyio._backends._asyncio",
+        "anyio._core._asyncio_selector_thread",
+        "uvicorn.loops.auto",
+        "uvicorn.loops.asyncio",
+        "uvicorn.protocols.http.auto",
+        "uvicorn.protocols.http.h11_impl",
+        "uvicorn.protocols.http.httptools_impl",
+        "uvicorn.protocols.websockets.auto",
+        "uvicorn.protocols.websockets.websockets_impl",
+        "uvicorn.protocols.websockets.wsproto_impl",
+        "uvicorn.lifespan.on",
+        "uvicorn.lifespan.off",
+        "multipart",
+        "python_multipart",
+    ]
 )
 
-# Collect required runtime data files (e.g. sqlglot dialects)
-datas = collect_data_files("sqlglot")
+# Collect required runtime data files (sqlglot dialects, templates, etc.)
+datas = (
+    collect_data_files("sqlglot")
+    + collect_data_files("fastapi")
+    + collect_data_files("starlette")
+    + collect_data_files("anyio")
+    + collect_data_files("mcp")
+    + collect_data_files("uvicorn")
+)
 
 # If pre-compiled web assets exist, embed them directly
 web_dir = backend_dir.parent / "frontend" / "build" / "web"
