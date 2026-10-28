@@ -17,12 +17,13 @@ class BackendSidecarService with WidgetsBindingObserver {
   int _activePort = 8000;
   bool _isManagedByApp = false;
   Completer<int>? _portCompleter;
+  final List<String> _stderrLines = [];
   String? _lastStderr;
   int? _lastExitCode;
 
   int get activePort => _activePort;
   String get baseUrl => 'http://127.0.0.1:$_activePort';
-  String? get lastError => _lastStderr;
+  String? get lastError => _stderrLines.isNotEmpty ? _stderrLines.join('\n') : _lastStderr;
   int? get lastExitCode => _lastExitCode;
 
   /// Ensures that a RevVault backend instance is running and healthy.
@@ -33,6 +34,7 @@ class BackendSidecarService with WidgetsBindingObserver {
       return targetPort;
     }
 
+    _stderrLines.clear();
     _lastStderr = null;
     _lastExitCode = null;
 
@@ -47,7 +49,7 @@ class BackendSidecarService with WidgetsBindingObserver {
     // 2. Locate bundled backend binary
     final candidatePaths = _getCandidateExecutablePaths();
     String? executable;
-    List<String> args = ['--auto-port', '--port', targetPort.toString()];
+    List<String> args = ['--host', '127.0.0.1', '--auto-port', '--port', targetPort.toString()];
 
     for (final candidate in candidatePaths) {
       if (candidate.type == _CandidateType.direct && File(candidate.path).existsSync()) {
@@ -55,13 +57,15 @@ class BackendSidecarService with WidgetsBindingObserver {
         break;
       } else if (candidate.type == _CandidateType.pythonScript && File(candidate.path).existsSync()) {
         executable = candidate.pythonBin;
-        args = [candidate.path, '--auto-port', '--port', targetPort.toString()];
+        args = [candidate.path, '--host', '127.0.0.1', '--auto-port', '--port', targetPort.toString()];
         break;
       }
     }
 
     if (executable == null) {
-      debugPrint('[Sidecar] No bundled backend binary found. Assuming external daemon.');
+      final checked = candidatePaths.map((c) => c.path).join(' | ');
+      _lastStderr = 'No bundled backend binary found. Checked: $checked';
+      debugPrint('[Sidecar] $_lastStderr');
       return targetPort;
     }
 
@@ -74,7 +78,10 @@ class BackendSidecarService with WidgetsBindingObserver {
         executable,
         args,
         workingDirectory: File(executable).parent.path,
-        environment: {'REVVAULT_HEADLESS': '1'},
+        environment: {
+          'REVVAULT_HEADLESS': '1',
+          'PYTHONUNBUFFERED': '1',
+        },
         mode: ProcessStartMode.normal,
       );
       _isManagedByApp = true;
@@ -95,7 +102,11 @@ class BackendSidecarService with WidgetsBindingObserver {
 
       _process!.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
         debugPrint('[Backend stderr] $line');
-        _lastStderr = line;
+        if (line.trim().isNotEmpty) {
+          _stderrLines.add(line);
+          if (_stderrLines.length > 30) _stderrLines.removeAt(0);
+          _lastStderr = line;
+        }
       });
 
       _process!.exitCode.then((code) {
@@ -123,13 +134,14 @@ class BackendSidecarService with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('[Sidecar] Failed to launch backend sidecar: $e');
       _lastStderr = e.toString();
+      _stderrLines.add('Failed to launch backend sidecar: $e');
       return targetPort;
     }
   }
 
   Future<bool> _probeHealth(int port) async {
     try {
-      final res = await http.get(Uri.parse('http://127.0.0.1:$port/health')).timeout(const Duration(milliseconds: 600));
+      final res = await http.get(Uri.parse('http://127.0.0.1:$port/health')).timeout(const Duration(milliseconds: 1500));
       return res.statusCode == 200;
     } catch (_) {
       return false;

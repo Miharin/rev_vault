@@ -13,10 +13,6 @@ else:
 
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
-
-import uvicorn
-from app.main import app
-
 import traceback
 
 def log_fatal_error(err_msg: str) -> None:
@@ -91,6 +87,9 @@ def main():
     # Output marker for parent processes (e.g. Flutter desktop sidecar manager)
     print(f"REVVAULT_ASSIGNED_PORT={port}", flush=True)
     print(f"Starting RevVault Backend & API on http://{args.host}:{port}", flush=True)
+
+    import uvicorn
+    from app.main import app
 
     if args.reload and not getattr(sys, "frozen", False):
         uvicorn.run("app.main:app", host=args.host, port=port, reload=True, log_level="info")

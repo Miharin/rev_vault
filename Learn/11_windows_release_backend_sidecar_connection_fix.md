@@ -28,35 +28,36 @@ The application fails to connect to the backend, schema explorer remains empty, 
      ```
 2. **Missing Package Data Files in Spec:**
    - FastAPI, Starlette, AnyIO, MCP, and Uvicorn runtime data files (such as OpenAPI templates and metadata) were omitted from `datas` in `backend/revvault.spec`.
-3. **Windows `SO_REUSEADDR` False Availability Detection:**
-   - In `backend/run_server.py`, `find_available_port()` set `SO_REUSEADDR = 1` across all platforms. On Windows, `SO_REUSEADDR` enables port hijacking and allows binding to already active ports without error, misleading the server into selecting an occupied port.
-4. **Path Resolution & Nested Bundle Detection:**
-   - `frontend/lib/services/backend_sidecar_service.dart` used raw backslash string concatenation which could mismatch mixed slash conventions, and did not search nested PyInstaller output folders (`backend/revvault-backend/revvault-backend.exe`).
-5. **Silent Diagnostic Failure:**
-   - In Flutter release builds, `debugPrint` is suppressed, and stderr was not captured into state, masking the fatal backend crash reason from the user.
+3. **Hard-coded `httpx2` Dependency in `agent_service.py`:**
+   - `backend/app/core/agent_service.py` imported `httpx2` unconditionally. In environments installing standard `httpx` from PyPI, Python immediately halted on startup with `ModuleNotFoundError: No module named 'httpx2'`.
+4. **Windows `SO_REUSEADDR` & Default `0.0.0.0` Host Binding:**
+   - In `backend/run_server.py`, `find_available_port()` set `SO_REUSEADDR = 1` across all platforms. On Windows, `SO_REUSEADDR` enables port hijacking and allows binding to already active ports without error.
+   - Binding by default to `0.0.0.0` triggered Windows Defender Firewall prompts or silent socket blocking on Windows Public networks.
+5. **Path Resolution, Python Pipe Buffering & Silent Diagnostic Failure:**
+   - Without `PYTHONUNBUFFERED=1`, Python pipes on Windows buffer standard I/O streams, delaying port announcement signals.
+   - `frontend/lib/services/backend_sidecar_service.dart` used raw backslash string concatenation and only captured the last line of stderr (which was often blank).
+   - In `app_state.dart`, `sidecarErr` was discarded if `exitCode == null`, concealing process launch and candidate path errors.
 
 ---
 
 ## 3. Step-by-Step Surgical Fix Procedure
 
 1. **Expose All Dynamic Submodules & Data in `backend/revvault.spec`:**
-   - Collected all submodules for `fastapi`, `starlette`, `anyio`, `sse_starlette`, `mcp.server`, `mcp.types`, `mcp.shared`, and `sqlite3`.
+   - Collected all submodules for `fastapi`, `starlette`, `anyio`, `sse_starlette`, `mcp.server`, `mcp.types`, `mcp.shared`, `sqlite3`, `httpx`, and `httpx2`.
    - Added explicit entries for `anyio._backends._asyncio`, `anyio._core._asyncio_selector_thread`, and all Uvicorn protocols/loops.
    - Added data files collection for `sqlglot`, `fastapi`, `starlette`, `anyio`, `mcp`, and `uvicorn`.
-2. **Harden `backend/run_server.py`:**
+2. **Dynamic `httpx2` / `httpx` Dual-Compatibility:**
+   - Wrapped `import httpx2 as httpx` with `except ImportError: import httpx` in `agent_service.py` and converted all calls to `httpx.AsyncClient`.
+3. **Protected Startup Imports & Server Hardening in `backend/run_server.py`:**
+   - Moved heavy ASGI imports (`uvicorn`, `app.main`) inside `main()` under the top-level `try ... except` so any import failure triggers fatal file logging to `%APPDATA%\Relva\RevVault\backend.log`.
    - Disabled `SO_REUSEADDR` on Windows to prevent port-probing false positives.
-   - Implemented persistent fatal crash logging (`log_fatal_error()`) writing directly to `%APPDATA%\Relva\RevVault\backend.log` and the executable directory.
-   - In interactive development mode, prevented immediate console closure on unhandled crash.
-3. **Equip `backend/requirements.txt` with Explicit Core Runtime Dependencies:**
-   - Added explicit `anyio>=4.0.0`, `starlette>=0.38.0`, `sse-starlette>=2.0.0`, and `httpx>=0.27.0`.
-4. **Harden Flutter `BackendSidecarService`:**
-   - Imported `package:path/path.dart as p;` and used `p.normalize(p.join(...))` for all candidate paths on Windows and Linux.
-   - Added candidates for both direct `backend/revvault-backend.exe` and nested `backend/revvault-backend/revvault-backend.exe`.
-   - Added `_lastStderr` and `_lastExitCode` tracking, passing `REVVAULT_HEADLESS: '1'`.
-   - Increased port announcement timeout to 8 seconds to accommodate cold starts with Windows Defender.
-   - Added early polling exit when child process dies during health check.
-5. **Surface Diagnostics in `AppState`:**
-   - Enhanced `app_state.dart` to display the exact backend exit code and error detail in `errorMessage`.
+4. **Harden Flutter `BackendSidecarService` & Loopback Isolation:**
+   - Explicitly passed `--host 127.0.0.1` to completely bypass Windows Firewall network barriers.
+   - Passed `PYTHONUNBUFFERED: '1'` in `environment` to prevent pipe stdout latency.
+   - Maintained a 30-line rolling buffer for `stderr` and increased `_probeHealth` timeout from 600ms to 1500ms.
+   - Added explicit diagnostic reporting if no binary is found across candidate paths.
+5. **Surface Complete Diagnostics in `AppState`:**
+   - Enhanced `app_state.dart` to display `sidecarErr` even when `exitCode == null`.
 6. **Set Working Directory in Inno Setup (`scripts/windows/revvault.iss`):**
    - Configured `WorkingDir: "{app}"` on desktop/start menu shortcuts and post-install execution.
 

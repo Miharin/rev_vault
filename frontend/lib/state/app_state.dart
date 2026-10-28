@@ -220,7 +220,9 @@ class AppState extends ChangeNotifier {
       final sidecarErr = BackendSidecarService.instance.lastError;
       final exitCode = BackendSidecarService.instance.lastExitCode;
       if (exitCode != null) {
-        errorMessage = 'RevVault backend process exited unexpectedly (code $exitCode)${sidecarErr != null ? ': $sidecarErr' : ''}.';
+        errorMessage = 'RevVault backend process exited (code $exitCode)${sidecarErr != null && sidecarErr.isNotEmpty ? ':\n$sidecarErr' : ''}.';
+      } else if (sidecarErr != null && sidecarErr.isNotEmpty) {
+        errorMessage = 'RevVault backend failed to start:\n$sidecarErr';
       } else {
         errorMessage = 'RevVault backend service is not reachable at $defaultUrl.';
       }

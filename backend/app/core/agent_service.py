@@ -2,7 +2,10 @@ import json
 import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
-import httpx2
+try:
+    import httpx2 as httpx
+except ImportError:
+    import httpx
 
 from app.config import settings_manager
 from app.core.db_manager import db_manager
@@ -455,7 +458,7 @@ class AgentService:
         """
         clean_url = lunar_normalize_ollama_url(ollama_url)
         try:
-            async with httpx2.AsyncClient(timeout=4.0) as client:
+            async with httpx.AsyncClient(timeout=4.0) as client:
                 res = await client.get(f"{clean_url}/api/tags")
                 if res.status_code == 200:
                     data = res.json()
@@ -1191,7 +1194,7 @@ class AgentService:
         executed_tools: List[Dict[str, Any]] = []
         turn_count = 0
 
-        async with httpx2.AsyncClient(timeout=LUNAR_AGENT_TIMEOUT_SECONDS) as client:
+        async with httpx.AsyncClient(timeout=LUNAR_AGENT_TIMEOUT_SECONDS) as client:
             while turn_count < max_turns:
                 turn_count += 1
                 payload = {

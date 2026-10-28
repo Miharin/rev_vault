@@ -24,7 +24,17 @@ hidden_imports = (
     + collect_submodules("websockets")
     + collect_submodules("sqlite3")
     + collect_submodules("app")
-    + [
+)
+
+# Optional HTTP client module collection
+for _pkg in ["httpx", "httpx2", "httpcore", "httpcore2"]:
+    try:
+        hidden_imports += collect_submodules(_pkg)
+    except Exception:
+        pass
+
+hidden_imports += (
+    [
         "anyio._backends._asyncio",
         "anyio._core._asyncio_selector_thread",
         "uvicorn.loops.auto",
