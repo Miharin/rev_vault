@@ -204,7 +204,7 @@ class AppState extends ChangeNotifier {
 
     // 2. Ensure backend sidecar is running on desktop
     final port = await BackendSidecarService.instance.ensureBackendRunning();
-    final defaultUrl = savedUrl ?? 'http://127.0.0.1:$port';
+    final defaultUrl = 'http://127.0.0.1:$port';
     api.setBaseUrl(defaultUrl);
     auditStream.setWsUrl(BackendConfigService.toWebSocketUrl(defaultUrl));
 

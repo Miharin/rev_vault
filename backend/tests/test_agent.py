@@ -1,5 +1,5 @@
 import pytest
-from app.core.agent_service import agent_service, DEFAULT_MODEL, DEFAULT_OLLAMA_URL, lunar_is_safe_model_entry
+from app.core.agent_service import agent_service, DEFAULT_MODEL, DEFAULT_OLLAMA_URL, lunar_is_safe_model_entry, lunar_resolve_model_name
 from app.api.routes_agent import AgentChatRequest, AgentChatResponse
 
 
@@ -52,6 +52,95 @@ def test_lunar_is_safe_model_entry():
         "name": "custom-model:latest",
         "is_unsafe": True
     }, lunar_include_unsafe=True) is True
+
+
+def test_lunar_resolve_model_name():
+    # Aliases
+    assert lunar_resolve_model_name("gemma:e4b") == "gemma4:e4b"
+    assert lunar_resolve_model_name("gemma-e4b") == "gemma4:e4b"
+    assert lunar_resolve_model_name("gemma4") == "gemma4:e4b"
+
+    # Known models resolution
+    known = ["gemma4:e4b", "gemma:2b", "qwen2.5-coder:7b"]
+    assert lunar_resolve_model_name("gemma:2b", known) == "gemma:2b"
+    assert lunar_resolve_model_name("gemma:e4b", known) == "gemma4:e4b"
+    assert lunar_resolve_model_name("qwen2.5-coder", known) == "qwen2.5-coder:7b"
+    assert lunar_resolve_model_name("qwen", known) == "qwen2.5-coder:7b"
+    assert lunar_resolve_model_name("", known) == DEFAULT_MODEL
+    assert lunar_resolve_model_name("unknown-model", known) == "unknown-model"
+
+
+@pytest.mark.asyncio
+async def test_agent_chat_404_helpful_message(monkeypatch):
+    class Mock404Response:
+        status_code = 404
+        text = '{"error": "model \'gemma:2b\' not found"}'
+
+    class MockAsyncClient:
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+        async def post(self, url, json=None):
+            return Mock404Response()
+
+    import httpx2
+    monkeypatch.setattr(httpx2, "AsyncClient", lambda **kwargs: MockAsyncClient())
+
+    res = await agent_service.chat(
+        user_message="Hello",
+        conversation_history=[],
+        model="gemma:2b"
+    )
+    assert "404" in res["error"]
+    assert "Model 'gemma:2b' not found" in res["content"]
+    assert "OLLAMA_MODELS=/var/lib/ollama" in res["content"]
+
+
+@pytest.mark.asyncio
+async def test_agent_chat_400_no_tool_fallback(monkeypatch):
+    calls = []
+
+    class Mock400Then200Response:
+        def __init__(self, status_code, text, data=None):
+            self.status_code = status_code
+            self.text = text
+            self._data = data or {}
+
+        def json(self):
+            return self._data
+
+    class MockAsyncClient:
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+        async def post(self, url, json=None):
+            calls.append(json)
+            # If payload contains 'tools', simulate Ollama 400 'does not support tools'
+            if "tools" in json:
+                return Mock400Then200Response(400, '{"error": "gemma:2b does not support tools"}')
+            # Fallback request without 'tools'
+            return Mock400Then200Response(200, '{}', {
+                "message": {"role": "assistant", "content": "Hello from Gemma 2B without tools!"}
+            })
+
+    import httpx2
+    monkeypatch.setattr(httpx2, "AsyncClient", lambda **kwargs: MockAsyncClient())
+
+    res = await agent_service.chat(
+        user_message="Explain SQL index",
+        conversation_history=[],
+        model="gemma:2b"
+    )
+
+    # Must succeed gracefully
+    assert res["error"] is None
+    assert "does not support native function/tool calling" in res["content"]
+    assert "Hello from Gemma 2B without tools!" in res["content"]
+    assert len(calls) == 2
+    assert "tools" in calls[0]
+    assert "tools" not in calls[1]
 
 
 @pytest.mark.asyncio

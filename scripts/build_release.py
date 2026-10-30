@@ -323,7 +323,13 @@ def main():
         build_linux(args.version, make_appimage=not args.no_appimage)
 
     if args.windows or (args.all and sys.platform == "win32"):
-        build_web()
+        if sys.platform != "win32":
+            error("Windows desktop builds must be compiled on a Windows host or via GitHub Actions (windows-latest runner).")
+            return
+        try:
+            build_web()
+        except Exception as e:
+            log(f"Web build warning (continuing without embedded web): {e}")
         build_windows(args.version)
 
     if not any([args.linux, args.windows, args.apk, args.backend_only, args.web_only, args.all]):

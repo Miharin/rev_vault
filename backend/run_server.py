@@ -19,12 +19,16 @@ def log_fatal_error(err_msg: str) -> None:
     """Writes fatal crashes to platform-appropriate backend.log for easy diagnosis."""
     candidates = [
         Path.home() / ".revvault" / "backend.log",
+        Path.cwd() / "backend.log",
         Path(sys.executable).parent / "backend.log",
     ]
     if sys.platform == "win32":
         app_data = os.environ.get("APPDATA")
+        local_app_data = os.environ.get("LOCALAPPDATA")
         if app_data:
             candidates.insert(0, Path(app_data) / "Relva" / "RevVault" / "backend.log")
+        if local_app_data:
+            candidates.insert(1, Path(local_app_data) / "Programs" / "RevVault" / "backend.log")
 
     for log_path in candidates:
         try:
@@ -39,8 +43,14 @@ def find_available_port(start_port: int, max_attempts: int = 30) -> int:
     """Attempts to find an open TCP port starting from start_port."""
     for p in range(start_port, start_port + max_attempts):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            # On Windows, SO_REUSEADDR enables port hijacking and gives false-positives for busy ports
-            if sys.platform != "win32":
+            if sys.platform == "win32":
+                import struct
+                # Set SO_LINGER to (1, 0) so socket closes with immediate RST, avoiding TIME_WAIT socket exhaustion
+                try:
+                    s.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack('ii', 1, 0))
+                except Exception:
+                    pass
+            else:
                 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
                 s.bind(("127.0.0.1", p))

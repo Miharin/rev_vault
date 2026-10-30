@@ -16,6 +16,13 @@ hidden_imports = (
     + collect_submodules("mcp.server")
     + collect_submodules("mcp.types")
     + collect_submodules("mcp.shared")
+    + collect_submodules("mcp_types")
+    + collect_submodules("jwt")
+    + collect_submodules("typing_inspection")
+    + collect_submodules("jsonschema")
+    + collect_submodules("opentelemetry")
+    + collect_submodules("httptools")
+    + collect_submodules("h11")
     + collect_submodules("sqlglot")
     + collect_submodules("aiosqlite")
     + collect_submodules("asyncpg")
@@ -44,6 +51,7 @@ hidden_imports += (
         "uvicorn.protocols.http.httptools_impl",
         "uvicorn.protocols.websockets.auto",
         "uvicorn.protocols.websockets.websockets_impl",
+        "uvicorn.protocols.websockets.websockets_sansio_impl",
         "uvicorn.protocols.websockets.wsproto_impl",
         "uvicorn.lifespan.on",
         "uvicorn.lifespan.off",
@@ -59,6 +67,9 @@ datas = (
     + collect_data_files("starlette")
     + collect_data_files("anyio")
     + collect_data_files("mcp")
+    + collect_data_files("mcp_types")
+    + collect_data_files("jwt")
+    + collect_data_files("jsonschema")
     + collect_data_files("uvicorn")
 )
 

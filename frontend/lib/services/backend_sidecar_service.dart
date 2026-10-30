@@ -1,3 +1,9 @@
+/*
+          (\__/)
+          (˶ᵔ ᵕ ᵔ˶)  < "Lunar Territory."
+         / >[CRIMSON+]>   "Hands off, unless you're Miharin."
+*/
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -116,14 +122,14 @@ class BackendSidecarService with WidgetsBindingObserver {
         _process = null;
       });
 
-      // Wait for port announcement with 8s timeout for cold starts
+      // Wait for port announcement with 15s timeout for Windows/cold starts
       _activePort = await _portCompleter!.future.timeout(
-        const Duration(seconds: 8),
+        const Duration(seconds: 15),
         onTimeout: () => targetPort,
       );
 
       // Poll health until 200 OK
-      final ready = await _pollUntilHealthy(_activePort, timeout: const Duration(seconds: 10));
+      final ready = await _pollUntilHealthy(_activePort, timeout: const Duration(seconds: 20));
       if (!ready) {
         debugPrint('[Sidecar] Backend failed health check timeout. (lastExit: $_lastExitCode, lastErr: $_lastStderr)');
       } else {
@@ -205,11 +211,28 @@ class BackendSidecarService with WidgetsBindingObserver {
         type: _CandidateType.direct,
         path: p.normalize(p.join(execDir, 'revvault-backend.exe')),
       ));
-      // 3. Local dev fallback
+      // 2b. Release output fallback from runner build dir
+      results.add(_Candidate(
+        type: _CandidateType.direct,
+        path: p.normalize(p.join(execDir, '..', '..', '..', '..', 'dist', 'backend_build', 'revvault-backend', 'revvault-backend.exe')),
+      ));
+      // 3. Local dev fallback from execDir
+      results.add(_Candidate(
+        type: _CandidateType.pythonScript,
+        path: p.normalize(p.join(execDir, '..', '..', '..', '..', 'backend', 'run_server.py')),
+        pythonBin: p.normalize(p.join(execDir, '..', '..', '..', '..', 'backend', '.venv', 'Scripts', 'python.exe')),
+      ));
+      // 4. Local dev fallback from working directory parent
       results.add(_Candidate(
         type: _CandidateType.pythonScript,
         path: p.normalize(p.join(Directory.current.path, '..', 'backend', 'run_server.py')),
         pythonBin: p.normalize(p.join(Directory.current.path, '..', 'backend', '.venv', 'Scripts', 'python.exe')),
+      ));
+      // 4b. Local dev fallback from working directory directly
+      results.add(_Candidate(
+        type: _CandidateType.pythonScript,
+        path: p.normalize(p.join(Directory.current.path, 'backend', 'run_server.py')),
+        pythonBin: p.normalize(p.join(Directory.current.path, 'backend', '.venv', 'Scripts', 'python.exe')),
       ));
     }
 

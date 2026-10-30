@@ -140,6 +140,61 @@ def lunar_is_safe_model_entry(lunar_model_entry: Any, lunar_include_unsafe: bool
 
     return True
 
+
+# (__)
+# (˶ᵔ ᵕ ᵔ˶) < "Lunar Territory."
+# / >[CRIMSON+]> "Hands off, unless you're Miharin."
+
+def lunar_resolve_model_name(lunar_requested_model: str, lunar_known_models: Optional[List[str]] = None) -> str:
+    """
+    Normalizes and resolves common model aliases, shorthands, or version typos.
+    For example:
+    - 'gemma:e4b' -> 'gemma4:e4b' (when gemma4:e4b is known/default)
+    - 'gemma-e4b' -> 'gemma4:e4b'
+    - 'gemma' -> 'gemma4:e4b' (or first matching gemma model if available)
+    - 'gemma:2b' -> 'gemma:2b'
+    """
+    if not lunar_requested_model:
+        return DEFAULT_MODEL
+
+    lunar_clean = lunar_requested_model.strip()
+    lunar_known = lunar_known_models or []
+
+    # 1. Exact match in known models
+    if lunar_clean in lunar_known:
+        return lunar_clean
+
+    lunar_lower = lunar_clean.lower()
+
+    # 2. Well-known alias mapping
+    lunar_aliases = {
+        "gemma:e4b": "gemma4:e4b",
+        "gemma-e4b": "gemma4:e4b",
+        "gemma_e4b": "gemma4:e4b",
+        "gemma4": "gemma4:e4b",
+    }
+    if lunar_lower in lunar_aliases:
+        lunar_candidate = lunar_aliases[lunar_lower]
+        if not lunar_known or lunar_candidate in lunar_known:
+            return lunar_candidate
+
+    # 3. Known models prefix / family match
+    if lunar_known:
+        for km in lunar_known:
+            if km.lower() == lunar_lower:
+                return km
+        for km in lunar_known:
+            if km.lower().startswith(f"{lunar_lower}:"):
+                return km
+        # If bare model name requested (e.g. 'gemma'), match first model containing it
+        if ":" not in lunar_clean:
+            for km in lunar_known:
+                if lunar_lower in km.lower():
+                    return km
+
+    return lunar_clean
+
+
 AGENT_TOOLS_SCHEMA = [
     {
         "type": "function",
@@ -1180,6 +1235,7 @@ class AgentService:
         Executes an agent conversation turn with multi-turn tool calling against Ollama.
         """
         clean_url = lunar_normalize_ollama_url(ollama_url)
+        resolved_model = lunar_resolve_model_name(model)
         system_prompt = AGENT_SYSTEM_PROMPT
 
         # Initialize messages with system prompt if absent
@@ -1193,26 +1249,74 @@ class AgentService:
 
         executed_tools: List[Dict[str, Any]] = []
         turn_count = 0
+        supports_tools = True
 
         async with httpx.AsyncClient(timeout=LUNAR_AGENT_TIMEOUT_SECONDS) as client:
             while turn_count < max_turns:
                 turn_count += 1
                 payload = {
-                    "model": model,
+                    "model": resolved_model,
                     "messages": messages,
-                    "tools": AGENT_TOOLS_SCHEMA,
                     "stream": False,
                     "options": {
                         "num_ctx": 8192
                     }
                 }
+                if supports_tools:
+                    payload["tools"] = AGENT_TOOLS_SCHEMA
 
                 try:
                     res = await client.post(f"{clean_url}/api/chat", json=payload)
                     if res.status_code != 200:
+                        error_detail = res.text
+                        err_lower = error_detail.lower()
+
+                        # Case 1: Model does not support tools (HTTP 400). Auto-fallback without tools!
+                        if supports_tools and ("does not support tools" in err_lower or "tools are not supported" in err_lower or ("tool" in err_lower and res.status_code == 400)):
+                            supports_tools = False
+                            retry_payload = {
+                                "model": resolved_model,
+                                "messages": messages,
+                                "stream": False,
+                                "options": {
+                                    "num_ctx": 8192
+                                }
+                            }
+                            retry_res = await client.post(f"{clean_url}/api/chat", json=retry_payload)
+                            if retry_res.status_code == 200:
+                                retry_data = retry_res.json()
+                                retry_msg = retry_data.get("message", {})
+                                messages.append(retry_msg)
+                                notice_prefix = (
+                                    f"> ℹ️ **Notice:** Model `{resolved_model}` does not support native function/tool calling in Ollama. "
+                                    f"Operating in conversational & SQL assistance mode (database tools are disabled).\n\n"
+                                )
+                                return {
+                                    "error": None,
+                                    "content": notice_prefix + (retry_msg.get("content") or ""),
+                                    "tool_executions": executed_tools,
+                                    "history": messages
+                                }
+                            else:
+                                error_detail = retry_res.text
+
+                        if res.status_code == 404:
+                            friendly_msg = (
+                                f"Ollama returned HTTP 404 (Model '{resolved_model}' not found). "
+                                f"Ensure Ollama is running with the proper model directory (e.g. OLLAMA_MODELS=/var/lib/ollama) "
+                                f"and that '{resolved_model}' is pulled via 'ollama pull {resolved_model}'."
+                            )
+                        elif "does not support tools" in err_lower:
+                            friendly_msg = (
+                                f"Model '{resolved_model}' does not support tools/function calling in Ollama (HTTP 400). "
+                                f"For automatic database queries and schema inspection tools, please switch to 'gemma4:e4b', 'qwen2.5:3b', or 'llama3.2:3b'."
+                            )
+                        else:
+                            friendly_msg = f"Ollama connection error (HTTP {res.status_code}): {error_detail}"
+
                         return {
-                            "error": f"Ollama returned HTTP {res.status_code}: {res.text}",
-                            "content": f"Ollama connection error (HTTP {res.status_code}). Ensure Ollama is running and model '{model}' is installed.",
+                            "error": f"Ollama returned HTTP {res.status_code}: {error_detail}",
+                            "content": friendly_msg,
                             "tool_executions": executed_tools,
                             "history": messages
                         }
