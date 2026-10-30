@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import 'state/app_state.dart';
 import 'theme/cyber_theme.dart';
 import 'views/sidebar_connections.dart';
@@ -51,7 +52,8 @@ class RevVaultHomeScreen extends StatefulWidget {
   State<RevVaultHomeScreen> createState() => _RevVaultHomeScreenState();
 }
 
-class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTickerProviderStateMixin {
+class _RevVaultHomeScreenState extends State<RevVaultHomeScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -83,7 +85,8 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
   double _getEffectiveTopInset(BuildContext context) {
     final systemTop = MediaQuery.paddingOf(context).top;
     if (systemTop > 0) return systemTop;
-    final isMobilePlatform = defaultTargetPlatform == TargetPlatform.android ||
+    final isMobilePlatform =
+        defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS;
     return isMobilePlatform ? 38.0 : 0.0;
   }
@@ -91,7 +94,8 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
   double _getEffectiveBottomInset(BuildContext context) {
     final systemBottom = MediaQuery.paddingOf(context).bottom;
     if (systemBottom > 0) return systemBottom;
-    final isMobilePlatform = defaultTargetPlatform == TargetPlatform.android ||
+    final isMobilePlatform =
+        defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS;
     return isMobilePlatform ? 16.0 : 0.0;
   }
@@ -125,11 +129,19 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
             state.toggleSchemaRailCollapse();
           }
         },
-        const SingleActivator(LogicalKeyboardKey.keyE, control: true, shift: true): () {
+        const SingleActivator(
+          LogicalKeyboardKey.keyE,
+          control: true,
+          shift: true,
+        ): () {
           state.toggleSchemaExplorerHidden();
         },
         // Quick Schema & Table Switcher (Ctrl+Shift+S, Ctrl+P, Ctrl+O)
-        const SingleActivator(LogicalKeyboardKey.keyS, control: true, shift: true): () {
+        const SingleActivator(
+          LogicalKeyboardKey.keyS,
+          control: true,
+          shift: true,
+        ): () {
           _openSchemaPicker(context, state);
         },
         const SingleActivator(LogicalKeyboardKey.keyP, control: true): () {
@@ -154,10 +166,13 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
         builder: (context, constraints) {
           final isMobile = constraints.maxWidth < 700;
           final isConstrained = constraints.maxWidth < 920;
-          final isBothRailsCollapsed = state.isRailCollapsed && state.isSchemaRailCollapsed;
+          final isBothRailsCollapsed =
+              state.isRailCollapsed && state.isSchemaRailCollapsed;
 
           return Scaffold(
-            drawer: isMobile ? _buildMobileDrawer(context, state, theme, accent) : null,
+            drawer: isMobile
+                ? _buildMobileDrawer(context, state, theme, accent)
+                : null,
             body: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -173,7 +188,9 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                     ),
                   ),
                   child: Padding(
-                    padding: EdgeInsets.only(top: _getEffectiveTopInset(context)),
+                    padding: EdgeInsets.only(
+                      top: _getEffectiveTopInset(context),
+                    ),
                     child: SafeArea(
                       top: false,
                       bottom: false,
@@ -182,28 +199,55 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           child: isMobile
-                              ? _buildMobileHeader(context, state, theme, accent)
-                              : _buildDesktopHeader(context, state, theme, accent, isBothRailsCollapsed),
+                              ? _buildMobileHeader(
+                                  context,
+                                  state,
+                                  theme,
+                                  accent,
+                                )
+                              : _buildDesktopHeader(
+                                  context,
+                                  state,
+                                  theme,
+                                  accent,
+                                  isBothRailsCollapsed,
+                                ),
                         ),
                       ),
                     ),
                   ),
                 ),
-
+                // Test for this query
+                // PREPARE test(text) AS SELECT *
+                // FROM users
+                // WHERE nama_user=$1;
+                // EXECUTE test('Sulastri');
+                // DEALLOCATE test;
                 // Offline Notice Banner with Quick Action
                 if (!state.isBackendOnline)
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
                     color: Colors.red.shade900.withValues(alpha: 0.85),
                     child: Row(
                       children: [
-                        const Icon(Icons.wifi_off, size: 14, color: Colors.white),
+                        const Icon(
+                          Icons.wifi_off,
+                          size: 14,
+                          color: Colors.white,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             'Backend offline (${state.backendBaseUrl}). Check PC server or configure IP.',
-                            style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w500),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -211,14 +255,21 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                           onTap: () => showBackendSettingsModal(context),
                           borderRadius: BorderRadius.circular(4),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2.5,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.22),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text(
                               'Change Host IP',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Colors.white),
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
@@ -232,7 +283,8 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                     width: double.infinity,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.2),
                       border: Border(
                         bottom: BorderSide(
                           color: theme.dividerColor.withValues(alpha: 0.2),
@@ -244,7 +296,10 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                       indicatorColor: accent,
                       labelColor: accent,
                       unselectedLabelColor: Colors.grey,
-                      labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      labelStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                       unselectedLabelStyle: const TextStyle(fontSize: 12),
                       tabs: [
                         const Tab(
@@ -272,7 +327,8 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                           children: [
                             const SqlEditorView(),
                             AiAssistantView(
-                              onNavigateToEditor: () => _tabController.animateTo(0),
+                              onNavigateToEditor: () =>
+                                  _tabController.animateTo(0),
                             ),
                             const McpMonitorView(),
                           ],
@@ -298,7 +354,8 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
 
                                   // Tab 2: In-App Public AI Assistant
                                   AiAssistantView(
-                                    onNavigateToEditor: () => _tabController.animateTo(0),
+                                    onNavigateToEditor: () =>
+                                        _tabController.animateTo(0),
                                   ),
 
                                   // Tab 3: Dedicated Antigravity MCP Live Audit Monitor
@@ -314,7 +371,9 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                 Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.4,
+                    ),
                     border: Border(
                       top: BorderSide(
                         color: theme.dividerColor.withValues(alpha: 0.25),
@@ -322,7 +381,9 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                     ),
                   ),
                   child: Padding(
-                    padding: EdgeInsets.only(bottom: _getEffectiveBottomInset(context)),
+                    padding: EdgeInsets.only(
+                      bottom: _getEffectiveBottomInset(context),
+                    ),
                     child: SafeArea(
                       top: false,
                       bottom: false,
@@ -338,7 +399,12 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                                 const SizedBox(width: 5),
                                 const Text(
                                   'ANTIGRAVITY MCP: ACTIVE',
-                                  style: TextStyle(fontSize: 10, fontFamily: 'monospace', fontWeight: FontWeight.bold, color: Colors.grey),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontFamily: 'monospace',
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey,
+                                  ),
                                 ),
                                 const SizedBox(width: 14),
                                 Text(
@@ -346,18 +412,32 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontFamily: 'monospace',
-                                    color: state.safeMode ? const Color(0xFF10B981) : Colors.amber,
+                                    color: state.safeMode
+                                        ? const Color(0xFF10B981)
+                                        : Colors.amber,
                                   ),
                                 ),
                                 const SizedBox(width: 14),
                                 Text(
                                   'QUERIES: ${state.auditEvents.length} | BLOCKED: ${state.auditEvents.where((e) => e.isBlocked).length}',
-                                  style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Colors.grey),
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontFamily: 'monospace',
+                                    color: Colors.grey,
+                                  ),
                                 ),
                                 const SizedBox(width: 14),
                                 Text(
-                                  isMobile ? 'MOBILE_PHONE_VIEW' : (isConstrained ? 'COMPACT_VIEW' : 'STUDIO_VIEW'),
-                                  style: TextStyle(fontSize: 9.5, fontFamily: 'monospace', color: accent),
+                                  isMobile
+                                      ? 'MOBILE_PHONE_VIEW'
+                                      : (isConstrained
+                                            ? 'COMPACT_VIEW'
+                                            : 'STUDIO_VIEW'),
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontFamily: 'monospace',
+                                    color: accent,
+                                  ),
                                 ),
                               ],
                             ),
@@ -375,7 +455,12 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
     );
   }
 
-  Widget _buildMobileDrawer(BuildContext context, AppState state, ThemeData theme, Color accent) {
+  Widget _buildMobileDrawer(
+    BuildContext context,
+    AppState state,
+    ThemeData theme,
+    Color accent,
+  ) {
     return Drawer(
       backgroundColor: theme.colorScheme.surface,
       width: 310,
@@ -385,10 +470,19 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
           child: Column(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-                  border: Border(bottom: BorderSide(color: theme.dividerColor.withValues(alpha: 0.3))),
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.35,
+                  ),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: theme.dividerColor.withValues(alpha: 0.3),
+                    ),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -397,14 +491,20 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                       decoration: BoxDecoration(
                         color: accent.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: accent.withValues(alpha: 0.35)),
+                        border: Border.all(
+                          color: accent.withValues(alpha: 0.35),
+                        ),
                       ),
                       child: Icon(Icons.shield, color: accent, size: 16),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'Database Hub',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: theme.colorScheme.onSurface),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        color: theme.colorScheme.onSurface,
+                      ),
                     ),
                     const Spacer(),
                     IconButton(
@@ -421,7 +521,10 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                 unselectedLabelColor: Colors.grey,
                 tabs: const [
                   Tab(icon: Icon(Icons.dns, size: 14), text: 'Connections'),
-                  Tab(icon: Icon(Icons.account_tree, size: 14), text: 'Schemas'),
+                  Tab(
+                    icon: Icon(Icons.account_tree, size: 14),
+                    text: 'Schemas',
+                  ),
                 ],
               ),
               const Expanded(
@@ -435,10 +538,19 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
               ),
               // Mobile Drawer Backend Config Footer
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
-                  border: Border(top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.25))),
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.25,
+                  ),
+                  border: Border(
+                    top: BorderSide(
+                      color: theme.dividerColor.withValues(alpha: 0.25),
+                    ),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -450,12 +562,19 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
                     Expanded(
                       child: Text(
                         state.backendBaseUrl,
-                        style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     IconButton(
-                      icon: Icon(Icons.settings_ethernet, size: 16, color: accent),
+                      icon: Icon(
+                        Icons.settings_ethernet,
+                        size: 16,
+                        color: accent,
+                      ),
                       tooltip: 'Configure Backend IP',
                       visualDensity: VisualDensity.compact,
                       onPressed: () {
@@ -473,188 +592,202 @@ class _RevVaultHomeScreenState extends State<RevVaultHomeScreen> with SingleTick
     );
   }
 
-  Widget _buildMobileHeader(BuildContext context, AppState state, ThemeData theme, Color accent) {
+  Widget _buildMobileHeader(
+    BuildContext context,
+    AppState state,
+    ThemeData theme,
+    Color accent,
+  ) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-      children: [
-        // Drawer toggle button (Hamburger)
-        Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, size: 20),
-            tooltip: 'Open Connections & Schemas',
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
-        const SizedBox(width: 4),
-
-        // Brand Logo & Title
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: accent.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(color: accent.withValues(alpha: 0.35)),
-          ),
-          child: Icon(Icons.shield, color: accent, size: 14),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          'RevVault',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 14,
-            letterSpacing: 0.6,
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-
-        const SizedBox(width: 8),
-
-        // Active Connection Chip (compact)
-        if (state.activeConnection != null) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(5),
-              border: Border.all(color: theme.dividerColor.withValues(alpha: 0.3)),
+        children: [
+          // Drawer toggle button (Hamburger)
+          Builder(
+            builder: (ctx) => IconButton(
+              icon: const Icon(Icons.menu, size: 20),
+              tooltip: 'Open Connections & Schemas',
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+              onPressed: () => Scaffold.of(ctx).openDrawer(),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  state.activeConnection!.engine == 'sqlite' ? Icons.description : Icons.cloud,
-                  size: 11,
-                  color: accent,
+          ),
+          const SizedBox(width: 4),
+
+          // Brand Logo & Title
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(5),
+              border: Border.all(color: accent.withValues(alpha: 0.35)),
+            ),
+            child: Icon(Icons.shield, color: accent, size: 14),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'RevVault',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 14,
+              letterSpacing: 0.6,
+              color: theme.colorScheme.onSurface,
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
+          // Active Connection Chip (compact)
+          if (state.activeConnection != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.4,
                 ),
-                const SizedBox(width: 4),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 90),
-                  child: Text(
-                    state.activeConnection!.name,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600),
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(
+                  color: theme.dividerColor.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    state.activeConnection!.engine == 'sqlite'
+                        ? Icons.description
+                        : Icons.cloud,
+                    size: 11,
+                    color: accent,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 4),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 90),
+                    child: Text(
+                      state.activeConnection!.name,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+          ],
+
+          // Quick Schema Switcher Button
+          InkWell(
+            onTap: () => _openSchemaPicker(context, state),
+            borderRadius: BorderRadius.circular(4),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: accent.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.hub_outlined, size: 11, color: accent),
+                  const SizedBox(width: 4),
+                  Text(
+                    'SCHEMA',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'monospace',
+                      color: accent,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 6),
-        ],
 
-        // Quick Schema Switcher Button
-        InkWell(
-          onTap: () => _openSchemaPicker(context, state),
-          borderRadius: BorderRadius.circular(4),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: accent.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.hub_outlined, size: 11, color: accent),
-                const SizedBox(width: 4),
-                Text(
-                  'SCHEMA',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'monospace',
-                    color: accent,
-                  ),
-                ),
-              ],
+          // Online Dot & Tap to Configure
+          InkWell(
+            onTap: () => showBackendSettingsModal(context),
+            borderRadius: BorderRadius.circular(6),
+            child: CyberStatusDot(
+              isOnline: state.isBackendOnline,
+              label: state.isBackendOnline ? 'ON' : 'OFF',
             ),
           ),
-        ),
-        const SizedBox(width: 6),
 
-        // Online Dot & Tap to Configure
-        InkWell(
-          onTap: () => showBackendSettingsModal(context),
-          borderRadius: BorderRadius.circular(6),
-          child: CyberStatusDot(
-            isOnline: state.isBackendOnline,
-            label: state.isBackendOnline ? 'ON' : 'OFF',
+          const SizedBox(width: 4),
+
+          // Backend Host Settings
+          IconButton(
+            icon: Icon(Icons.settings_ethernet, size: 16, color: accent),
+            tooltip: 'Configure Backend IP',
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            onPressed: () => showBackendSettingsModal(context),
           ),
-        ),
 
-        const SizedBox(width: 4),
+          const SizedBox(width: 4),
 
-        // Backend Host Settings
-        IconButton(
-          icon: Icon(Icons.settings_ethernet, size: 16, color: accent),
-          tooltip: 'Configure Backend IP',
-          visualDensity: VisualDensity.compact,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          onPressed: () => showBackendSettingsModal(context),
-        ),
+          // QR Mobile Connect
+          IconButton(
+            icon: Icon(Icons.qr_code_2, size: 16, color: accent),
+            tooltip: 'Share LAN / Mobile QR',
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            onPressed: () => showMobileConnectModal(context),
+          ),
 
-        const SizedBox(width: 4),
+          const SizedBox(width: 4),
 
-        // QR Mobile Connect
-        IconButton(
-          icon: Icon(Icons.qr_code_2, size: 16, color: accent),
-          tooltip: 'Share LAN / Mobile QR',
-          visualDensity: VisualDensity.compact,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          onPressed: () => showMobileConnectModal(context),
-        ),
+          // Theme Toggle
+          IconButton(
+            icon: Icon(state.themePreference.icon, size: 16, color: accent),
+            tooltip: 'Cycle Theme Mode',
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            onPressed: () => _cycleThemePreference(state),
+          ),
 
-        const SizedBox(width: 4),
-
-        // Theme Toggle
-        IconButton(
-          icon: Icon(state.themePreference.icon, size: 16, color: accent),
-          tooltip: 'Cycle Theme Mode',
-          visualDensity: VisualDensity.compact,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          onPressed: () => _cycleThemePreference(state),
-        ),
-
-        // Accent Preset
-        PopupMenuButton<AccentColorPreset>(
-          tooltip: 'Cyber Accent Preset',
-          icon: Icon(state.accentColor.icon, size: 16, color: accent),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-          onSelected: (selected) => state.setAccentColor(selected),
-          itemBuilder: (context) {
-            return AccentColorPreset.values.map((preset) {
-              return PopupMenuItem(
-                value: preset,
-                child: Row(
-                  children: [
-                    CircleAvatar(radius: 6, backgroundColor: preset.color),
-                    const SizedBox(width: 10),
-                    Text(preset.label, style: const TextStyle(fontSize: 12)),
-                    if (preset == state.accentColor) ...[
-                      const Spacer(),
-                      Icon(Icons.check, size: 14, color: preset.color),
+          // Accent Preset
+          PopupMenuButton<AccentColorPreset>(
+            tooltip: 'Cyber Accent Preset',
+            icon: Icon(state.accentColor.icon, size: 16, color: accent),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            onSelected: (selected) => state.setAccentColor(selected),
+            itemBuilder: (context) {
+              return AccentColorPreset.values.map((preset) {
+                return PopupMenuItem(
+                  value: preset,
+                  child: Row(
+                    children: [
+                      CircleAvatar(radius: 6, backgroundColor: preset.color),
+                      const SizedBox(width: 10),
+                      Text(preset.label, style: const TextStyle(fontSize: 12)),
+                      if (preset == state.accentColor) ...[
+                        const Spacer(),
+                        Icon(Icons.check, size: 14, color: preset.color),
+                      ],
                     ],
-                  ],
-                ),
-              );
-            }).toList();
-          },
-        ),
-      ],
-    ),
-  );
-}
+                  ),
+                );
+              }).toList();
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
-Widget _buildDesktopHeader(
+  Widget _buildDesktopHeader(
     BuildContext context,
     AppState state,
     ThemeData theme,
@@ -716,7 +849,9 @@ Widget _buildDesktopHeader(
                 state.toggleSchemaRailCollapse(target);
               },
               icon: Icon(
-                isBothRailsCollapsed ? Icons.view_sidebar_outlined : Icons.menu_open,
+                isBothRailsCollapsed
+                    ? Icons.view_sidebar_outlined
+                    : Icons.menu_open,
                 size: 16,
                 color: isBothRailsCollapsed ? accent : Colors.grey,
               ),
@@ -744,7 +879,9 @@ Widget _buildDesktopHeader(
                 state.toggleSchemaExplorerHidden();
               },
               icon: Icon(
-                state.isSchemaExplorerHidden ? Icons.view_sidebar_outlined : Icons.view_sidebar,
+                state.isSchemaExplorerHidden
+                    ? Icons.view_sidebar_outlined
+                    : Icons.view_sidebar,
                 size: 16,
                 color: state.isSchemaExplorerHidden ? Colors.grey : accent,
               ),
@@ -752,7 +889,9 @@ Widget _buildDesktopHeader(
                 state.isSchemaExplorerHidden ? 'Show Schemas' : 'Hide Schemas',
                 style: TextStyle(
                   fontSize: 11,
-                  color: state.isSchemaExplorerHidden ? Colors.grey.shade400 : accent,
+                  color: state.isSchemaExplorerHidden
+                      ? Colors.grey.shade400
+                      : accent,
                 ),
               ),
               style: TextButton.styleFrom(
@@ -797,7 +936,9 @@ Widget _buildDesktopHeader(
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.35,
+                ),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
                   color: theme.dividerColor.withValues(alpha: 0.3),
@@ -807,14 +948,19 @@ Widget _buildDesktopHeader(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    state.activeConnection!.engine == 'sqlite' ? Icons.description : Icons.cloud,
+                    state.activeConnection!.engine == 'sqlite'
+                        ? Icons.description
+                        : Icons.cloud,
                     size: 13,
                     color: accent,
                   ),
                   const SizedBox(width: 5),
                   Text(
                     state.activeConnection!.name,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -849,9 +995,13 @@ Widget _buildDesktopHeader(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.35,
+                  ),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: theme.dividerColor.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: theme.dividerColor.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -860,7 +1010,11 @@ Widget _buildDesktopHeader(
                     const SizedBox(width: 5),
                     Text(
                       'Host IP',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
                     ),
                   ],
                 ),
@@ -890,7 +1044,11 @@ Widget _buildDesktopHeader(
                     const SizedBox(width: 5),
                     Text(
                       'Mobile QR',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: accent),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: accent,
+                      ),
                     ),
                   ],
                 ),
@@ -934,9 +1092,13 @@ Widget _buildDesktopHeader(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.3,
+                  ),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: theme.dividerColor.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: theme.dividerColor.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -946,8 +1108,14 @@ Widget _buildDesktopHeader(
                     Text(
                       state.themePreference == ThemePreference.circadian
                           ? 'Circadian'
-                          : (state.themePreference == ThemePreference.dark ? 'Dark' : 'Light'),
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: accent),
+                          : (state.themePreference == ThemePreference.dark
+                                ? 'Dark'
+                                : 'Light'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: accent,
+                      ),
                     ),
                   ],
                 ),
